@@ -78,6 +78,42 @@ LEN = {
 }
 
 
+# --- HuC6280 specific / extended 65C02 opcodes (per HuC6280 manual) ---
+OPCODES.update({
+    0x02: ("SXY", "imp"), 0x03: ("ST0", "imm"), 0x12: ("ORA", "izp"),
+    0x13: ("ST1", "imm"), 0x22: ("SAX", "imp"), 0x23: ("ST2", "imm"),
+    0x32: ("AND", "izp"), 0x42: ("SAY", "imp"), 0x43: ("TMA", "imm"),
+    0x52: ("EOR", "izp"), 0x53: ("TAM", "imm"), 0x62: ("CLA", "imp"),
+    0x72: ("ADC", "izp"), 0x73: ("TII", "block"), 0x82: ("CLX", "imp"),
+    0x83: ("TST", "tst_zp"), 0x92: ("STA", "izp"), 0x93: ("TST", "tst_abs"),
+    0xA3: ("TST", "tst_zpx"), 0xB2: ("LDA", "izp"), 0xB3: ("TST", "tst_absx"),
+    0xC2: ("CLY", "imp"), 0xC3: ("TDD", "block"), 0xD2: ("CMP", "izp"),
+    0xD3: ("TIN", "block"), 0xD4: ("CSH", "imp"), 0xE3: ("TIA", "block"),
+    0xF2: ("SBC", "izp"), 0xF3: ("TAI", "block"), 0xF4: ("SET", "imp"),
+    0x54: ("CSL", "imp"), 0x44: ("BSR", "rel"), 0x80: ("BRA", "rel"),
+    0x07: ("RMB0", "zp"), 0x17: ("RMB1", "zp"), 0x27: ("RMB2", "zp"),
+    0x37: ("RMB3", "zp"), 0x47: ("RMB4", "zp"), 0x57: ("RMB5", "zp"),
+    0x67: ("RMB6", "zp"), 0x77: ("RMB7", "zp"),
+    0x87: ("SMB0", "zp"), 0x97: ("SMB1", "zp"), 0xA7: ("SMB2", "zp"),
+    0xB7: ("SMB3", "zp"), 0xC7: ("SMB4", "zp"), 0xD7: ("SMB5", "zp"),
+    0xE7: ("SMB6", "zp"), 0xF7: ("SMB7", "zp"),
+    0x0F: ("BBR0", "bbr"), 0x1F: ("BBR1", "bbr"), 0x2F: ("BBR2", "bbr"),
+    0x3F: ("BBR3", "bbr"), 0x4F: ("BBR4", "bbr"), 0x5F: ("BBR5", "bbr"),
+    0x6F: ("BBR6", "bbr"), 0x7F: ("BBR7", "bbr"),
+    0x8F: ("BBS0", "bbr"), 0x9F: ("BBS1", "bbr"), 0xAF: ("BBS2", "bbr"),
+    0xBF: ("BBS3", "bbr"), 0xCF: ("BBS4", "bbr"), 0xDF: ("BBS5", "bbr"),
+    0xEF: ("BBS6", "bbr"), 0xFF: ("BBS7", "bbr"),
+    0x6C: ("JMP", "ind"), 0x7C: ("JMP", "abx"),
+    0xDC: ("???", "imp"), 0x5C: ("???", "imp"), 0xFC: ("???", "imp"),
+    0x1C: ("TRB", "abs"), 0x0C: ("TSB", "abs"), 0x3C: ("BIT", "abx"),
+})
+
+LEN.update({
+    "block": 7, "tst_zp": 3, "tst_abs": 4, "tst_zpx": 3, "tst_absx": 4,
+    "bbr": 3,
+})
+
+
 def disasm_one(code, pc):
     op = code[pc]
     if op not in OPCODES:
@@ -89,6 +125,7 @@ def disasm_one(code, pc):
         return None, 1
     a = b[1] if n >= 2 else 0
     c = b[2] if n >= 3 else 0
+    d = b[3] if n >= 4 else 0
     if mode == "imp":
         return "%s" % mn, n
     if mode == "acc":
@@ -117,6 +154,22 @@ def disasm_one(code, pc):
         return "%s $%04X,Y" % (mn, a | (c << 8)), n
     if mode == "ind":
         return "%s ($%04X)" % (mn, a | (c << 8)), n
+    if mode == "block":
+        # opcode, SS, ss, DD, dd, LL, ll
+        src = (a << 8) | c
+        dst = (b[3] << 8) | b[4]
+        ln = (b[5] << 8) | b[6]
+        return "%s $%04X, $%04X, $%04X" % (mn, src, dst, ln), n
+    if mode == "tst_zp":
+        return "%s #$%02X, $%02X" % (mn, a, c), n
+    if mode == "tst_abs":
+        return "%s #$%02X, $%04X" % (mn, a, c | (d << 8)), n
+    if mode == "tst_zpx":
+        return "%s #$%02X, $%02X,X" % (mn, a, c), n
+    if mode == "tst_absx":
+        return "%s #$%02X, $%04X,X" % (mn, a, c | (d << 8)), n
+    if mode == "bbr":
+        return "%s $%02X, $%04X" % (mn, a, (pc + 3 + ((c ^ 0x80) - 0x80)) & 0xFFFF), n
     return ".byte $%02X" % op, n
 
 

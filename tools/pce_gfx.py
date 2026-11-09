@@ -196,6 +196,96 @@ def cmd_sprites(data, off, count, out, pal=None):
                       4, 2, out)
 
 
+def cmd_screen(data, off, w=32, h=28, out="screen.png", pal=None):
+    """Render `w*h` consecutive 8x8 tiles as one screen (identity tilemap)."""
+    palette = pal or GRAY
+    scale = 3
+    img = Image.new("RGB", (w * 8 * scale, h * 8 * scale), (0, 0, 0))
+    from PIL import ImageDraw
+    d = ImageDraw.Draw(img)
+    for t in range(w * h):
+        base = off + t * 32
+        blk = data[base:base + 32]
+        if len(blk) < 32:
+            break
+        px = bg_tile_pixels(blk)
+        tx = (t % w) * 8
+        ty = (t // w) * 8
+        for r in range(8):
+            for x in range(8):
+                col = palette[px[r][x] % len(palette)]
+                d.rectangle([(tx + x) * scale, (ty + r) * scale,
+                             (tx + x) * scale + scale - 1,
+                             (ty + r) * scale + scale - 1], fill=col)
+    img.save(out)
+    return out
+
+
+def sprite_slot_pixels(s, cells_wide=2):
+    """Decode one 16x16 PCE sprite stored in a 32-pixel-wide VRAM slot.
+
+    VDC doc: 'a sprite is always aligned like a 32 pixel wide sprite'. A 1-cell
+    wide sprite therefore only uses the first cell of each row; the remaining
+    16 pixels belong to the interleaved neighbour.
+    Slot layout: plane p (0..3) at bytes [p*64..], row r at +4r, cell c at
+    +2c, each cell row = 2 big-endian bytes (16 pixels).
+    """
+    rows = []
+    for r in range(16):
+        cells = []
+        for c in range(cells_wide):
+            word = []
+            for x in range(16):
+                v = 0
+                for p in range(4):
+                    base = p * 64 + r * 4 + c * 2
+                    hi, lo = s[base], s[base + 1]
+                    if x < 8:
+                        if hi & (0x80 >> x):
+                            v |= 1 << p
+                    else:
+                        if lo & (0x80 >> (x - 8)):
+                            v |= 1 << p
+                word.append(v)
+            cells.append(word)
+        rows.append(cells)
+    return rows
+
+
+def cmd_slots(data, off, count, out, pal=None, cells_wide=2):
+    palette = pal or GRAY
+    sps = []
+    for t in range(count):
+        base = off + t * (64 * 4)
+        blk = data[base:base + 256]
+        if len(blk) < 256:
+            break
+        sps.append(sprite_slot_pixels(blk, cells_wide))
+    if not sps:
+        return None
+    from PIL import ImageDraw
+    cols = 8
+    rows = (len(sps) + cols - 1) // cols
+    cellpx = cells_wide * 16
+    scale = 3
+    img = Image.new("RGB", (cols * cellpx * scale + 8, rows * 16 * scale + 8), (24, 24, 24))
+    d = ImageDraw.Draw(img)
+    for t, sp in enumerate(sps):
+        cx = t % cols
+        cy = t // cols
+        ox = 4 + cx * cellpx * scale
+        oy = 4 + cy * 16 * scale
+        for r in range(16):
+            for c in range(cells_wide):
+                for x in range(16):
+                    col = palette[sp[r][c][x] % len(palette)]
+                    d.rectangle([ox + (c * 16 + x) * scale, oy + r * scale,
+                                 ox + (c * 16 + x) * scale + scale - 1,
+                                 oy + r * scale + scale - 1], fill=col)
+    img.save(out)
+    return out
+
+
 def cmd_pal(data, off, count):
     for i in range(count):
         w = data[off + i * 2] | (data[off + i * 2 + 1] << 8)
@@ -226,6 +316,21 @@ def main():
         if len(sys.argv) > 7:
             pal = load_palette(data, int(sys.argv[6], 0), int(sys.argv[7], 0))
         print(cmd_sprites(data, off, n, out, pal), "written")
+    elif cmd == "screen":
+        off = int(sys.argv[3], 0)
+        w = int(sys.argv[4], 0) if len(sys.argv) > 4 else 32
+        h = int(sys.argv[5], 0) if len(sys.argv) > 5 else 28
+        out = sys.argv[6] if len(sys.argv) > 6 else "build/gfx/screen.png"
+        print(cmd_screen(data, off, w, h, out), "written")
+    elif cmd == "slots":
+        off = int(sys.argv[3], 0)
+        n = int(sys.argv[4], 0)
+        out = sys.argv[5]
+        cw = int(sys.argv[6], 0) if len(sys.argv) > 6 else 2
+        pal = None
+        if len(sys.argv) > 8:
+            pal = load_palette(data, int(sys.argv[7], 0), int(sys.argv[8], 0))
+        print(cmd_slots(data, off, n, out, pal, cw), "written")
     elif cmd == "pal":
         off = int(sys.argv[3], 0)
         n = int(sys.argv[4], 0) if len(sys.argv) > 4 else 32
