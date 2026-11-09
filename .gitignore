@@ -1,0 +1,22 @@
+# Original copyrighted disc image - never commit (555 MB).
+# NOTE: square brackets must be escaped, they are glob character classes.
+Valis_3_(NTSC-J)_\[TJCD0009\].iso
+Valis_3_(NTSC-J)_\[TJCD0009\].cue
+*.iso
+*.cue
+
+# Regenerated from the disc image by tools/cue_split.py
+build/extracted/
+
+# Build output
+build/*.elf
+build/*.sym
+build/*.map
+build/*.o
+build/*.a
+build/*.md
+
+__pycache__/
+*.pyc
+.vscode/
+.idea/
