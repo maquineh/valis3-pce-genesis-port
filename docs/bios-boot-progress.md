@@ -191,5 +191,11 @@ destination `$0162` exists in the disc code, so the intended routine/vector
 is not being set up correctly by the emulated title path.  This remains a
 title/MPR/stack emulation bug, not a missing stage-select overlay.
 
+The stack return `$4183` corresponds to the startup overlay's
+`$4181 JSR $4360`, i.e. the title's **CONTINUE** branch, not the hidden
+stage-select code.  The combo is being interpreted as CONTINUE/confirm and
+`$4360` calls a RAM routine that is not populated (likely the save-manager
+path).  The hidden stage-select trigger itself has not been reached.
+
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.
