@@ -8,5 +8,7 @@
 
 /* Sub CPU commands */
 #define CMD_LOAD_FILE 1
+#define CMD_PLAY_CDDA 2
+#define CMD_STOP_CDDA 3
 
 #endif

@@ -1,4 +1,5 @@
 #include "shared.h"
+#include <sub/bios.h>
 #include <sub/cdrom.h>
 #include <sub/gate_arr.h>
 #include <sub/memmap.h>
@@ -7,6 +8,8 @@
 void load_ipx();
 
 extern void sp_fatal();
+
+u16 cd_track_number;
 
 char const * const filenames[] = {
   "IPX.MMD;1", "GAME.MMD;1"};
@@ -37,6 +40,19 @@ void main()
       case CMD_LOAD_FILE:
         load_file(CDROM_LOAD_CDC, filenames[param1], (u8 *) WORD_RAM_2M);
         grant_2m();
+        break;
+
+      // play CD audio track (0 = stop)
+      case CMD_PLAY_CDDA:
+        cd_track_number = param1;
+        if (cd_track_number == 0)
+          bios_msc_stop();
+        else
+          bios_msc_play(&cd_track_number);
+        break;
+
+      case CMD_STOP_CDDA:
+        bios_msc_stop();
         break;
 
       default:
