@@ -99,7 +99,29 @@ Decoded screens so far:
 | Screen | Tiles (track 2 file offset) | Map (BAT) | Palette | How identified |
 |---|---|---|---|---|
 | Title / attract | `$6E00` (read: sector $0C → VRAM word $1000, 40 KiB) | `$123D40` | `$2B49` (64 BG colours) | decoded loader + rendered |
-| Menu / config ("PRINT") | `$0000` (read: sector $00 → VRAM word $2000) | `$0B0EA0` | (VCE words in `$B0EA0` area) | BAT scan + rendered |
+| Menu / config ("PRINT") | `$0000` (read: sector $00 → VRAM word $2000) | `$0B0EA0` | `$B0FC0` (64 BG colours) | BAT scan + rendered |
+
+### Stage tile blocks
+The stage loader (`tools/decode_cd_calls.py`, sites `$22529E`..`$2256A7`)
+reads **8 × 4 sectors** with destination type `dh=$01` (local RAM) to
+**RAM $8000** from disc sectors 988, 1000, 1020, 1040, 1060, 1080, 1120, 1128:
+
+| block | sector | track-2 file offset | content |
+|---|---|---|---|
+| 1 | 988 | `$237540` | tiles (coherence 0.32) |
+| 2 | 1000 | `$23E380` | tiles (0.29) |
+| 3 | 1020 | `$249B40` | tiles (0.31) |
+| 4 | 1040 | `$255300` | tiles (0.26) |
+| 5 | 1060 | `$260AC0` | tiles (0.26) |
+| 6 | 1080 | `$26C280` | tiles (0.42) |
+| 7 | 1120 | `$283200` | tiles (0.27) |
+| 8 | 1128 | `$287B80` | tiles (0.51) |
+
+These are the gameplay tile sets (character/enemy/object artwork, mostly
+transparent 16x16-style slots plus dither fills). The matching stage *maps*
+are not present as plain 32x28 BATs anywhere on the disc, so they are either
+generated from object/collision lists by the game code or stored in a format
+that still needs decoding (see "Open items").
 
 Map/PALETTE/TILE block layout in track 2 (`tools/` classifier in
 `tools/find_maps.py`, block classifier: see `tools/map_tracks.py`):
