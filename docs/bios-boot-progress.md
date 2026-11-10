@@ -98,8 +98,13 @@ format has been identified.
 
 The other data tracks were also checked.  Track 6 (payload-contiguous) has a
 **coherent 4bpp tile sheet at offset 0**, but its 0x600-byte BAT candidates
-render black (palette 0 dominates) and do not describe a screen.  The stage
-map/palette encoding is therefore still unknown.
+render black (palette 0 dominates) and do not describe a screen.
+
+Treating the STG1A map as byte-swapped and 28 rows (the PCE screen height)
+produces coherent repeated bands, but the words are `0x0100` runs and
+pattern-like tile values (`0x51d`, `0x41c`, `0x222`, `0x303`) with many
+zeros — not a valid 32x28 BAT.  The stage map/palette encoding is therefore
+still unknown.
 
 ## Remaining blocker
 
