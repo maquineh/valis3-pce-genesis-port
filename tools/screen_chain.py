@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Find how many consecutive stage screens follow a confirmed map.
+"""Walk the stage screen chain with a coherence test.
 
-Screens are 32x24 tiles (0x600 bytes) on a grid. Starting from a confirmed
-map offset, walk the grid while the renders keep producing a playfield (many
-distinct tiles, structured rows) with the same tile block.
+A real playfield screen has long horizontal runs of identical tile indices
+(terrain/walls); object/animation tables do not. We require
+distinct tiles > 40, no out-of-range tiles, and max tile run >= 16.
 
 Usage: python3 tools/screen_chain.py <first_map> <tile_block> [max]
 """
@@ -16,10 +16,18 @@ GRID = 0x600
 ROWS, COLS = 24, 32
 
 
+def tile_kind(t32):
+    u = set(t32)
+    if len(u) == 1:
+        return "blank"
+    if len(u) <= 3:
+        return "dither"
+    return "art"
+
+
 def stats(b, off, tile_off, base=0x200):
-    distinct = 0
+    distinct = set()
     bad = 0
-    tiles = set()
     for i in range(ROWS * COLS):
         w = b[off + i * 2] | (b[off + i * 2 + 1] << 8)
         tile = w & 0xFFF
@@ -27,8 +35,29 @@ def stats(b, off, tile_off, base=0x200):
         if src < 0 or src + 32 > len(b):
             bad += 1
             continue
-        tiles.add(tile)
-    return len(tiles), bad
+        distinct.add(tile)
+    return len(distinct), bad
+
+
+def max_run(b, off):
+    """Longest horizontal run of identical tile indices (terrain)."""
+    best = 0
+    for r in range(ROWS):
+        run = 1
+        for c in range(1, COLS):
+            i = r * COLS + c
+            j = r * COLS + c - 1
+            w1 = b[off + i * 2] | (b[off + i * 2 + 1] << 8)
+            w2 = b[off + j * 2] | (b[off + j * 2 + 1] << 8)
+            if (w1 & 0xFFF) == (w2 & 0xFFF):
+                run += 1
+            else:
+                if run > best:
+                    best = run
+                run = 1
+        if run > best:
+            best = run
+    return best
 
 
 def main():
@@ -44,9 +73,10 @@ def main():
         if off + GRID > len(b):
             break
         nt, bad = stats(b, off, block)
-        ok = nt > 40 and bad < 8
-        print("screen %2d at $%06X: distinct tiles %3d, bad %2d %s"
-              % (k + 1, off, nt, bad, "OK" if ok else "STOP"))
+        run = max_run(b, off)
+        ok = nt > 40 and bad < 8 and run >= 16
+        print("screen %2d at $%06X: distinct %3d, bad %2d, maxrun %2d %s"
+              % (k + 1, off, nt, bad, run, "OK" if ok else "STOP"))
         if ok:
             n += 1
         else:
