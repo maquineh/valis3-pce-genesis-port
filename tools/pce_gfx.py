@@ -286,6 +286,19 @@ def cmd_slots(data, off, count, out, pal=None, cells_wide=2):
     return out
 
 
+def load_palette_md(data, off, count=64):
+    """Read `count` VCE palette words and return Mega Drive colours."""
+    out = []
+    for i in range(count):
+        lo, hi = data[off + i * 2], data[off + i * 2 + 1]
+        w = lo | (hi << 8)
+        b = w & 7
+        r = (w >> 3) & 7
+        g = (w >> 6) & 7
+        out.append((r * 255 // 7, g * 255 // 7, b * 255 // 7))
+    return out
+
+
 def cmd_pal(data, off, count):
     for i in range(count):
         w = data[off + i * 2] | (data[off + i * 2 + 1] << 8)

@@ -11,7 +11,14 @@ import sys
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, "tools")
-from pce_gfx import bg_tile_pixels, GRAY  # noqa: E402
+from pce_gfx import bg_tile_pixels, GRAY, load_palette_md  # noqa: E402
+
+
+def build_palette(b, pal_off, count=64):
+    if pal_off is None:
+        return GRAY * 4
+    pal = load_palette_md(b, pal_off, count)
+    return pal + [(0, 0, 0)] * (16 * count - len(pal)) if len(pal) < 64 else pal
 
 
 def main():
@@ -24,6 +31,8 @@ def main():
     out = sys.argv[7] if len(sys.argv) > 7 else "build/gfx/screen_bat.png"
     scale = 3
     b = open(data_path, "rb").read()
+    pal_off = int(sys.argv[8], 0) if len(sys.argv) > 8 else None
+    palette = build_palette(b, pal_off)
 
     img = Image.new("RGB", (w * 8 * scale, h * 8 * scale), (0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -41,7 +50,7 @@ def main():
         tx, ty = (i % w) * 8, (i // w) * 8
         for r in range(8):
             for x in range(8):
-                col = GRAY[px[r][x]]
+                col = palette[(pal * 16 + px[r][x]) % len(palette)]
                 d.rectangle([(tx + x) * scale, (ty + r) * scale,
                              (tx + x) * scale + scale - 1,
                              (ty + r) * scale + scale - 1], fill=col)

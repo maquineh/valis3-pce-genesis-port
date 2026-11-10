@@ -8,13 +8,16 @@ Valis_3_(NTSC-J)_\[TJCD0009\].cue
 # Regenerated from the disc image by tools/cue_split.py
 build/extracted/
 
-# Build output
-build/*.elf
-build/*.sym
-build/*.map
-build/*.o
-build/*.a
-build/*.md
+# Mega CD build artefacts
+build/valis3.iso
+build/boot.bin
+build/*.mmd
+build/*.smd
+game/built/
+game/build/
+game/disc/out/
+game/build.log
+game/out/
 
 __pycache__/
 *.pyc
