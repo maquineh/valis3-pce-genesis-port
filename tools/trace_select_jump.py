@@ -38,7 +38,7 @@ emu.joy_low = 0x0F
 
 hit = False
 for k in range(2000000):
-    if emu.cpu.pc == 0x0194:
+    if emu.cpu.pc == 0xFFF2:
         hit = True
         break
     trace.append(emu.cpu.pc)
