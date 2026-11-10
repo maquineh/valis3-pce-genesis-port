@@ -84,6 +84,7 @@ class PCESystem(object):
         self.steps = 0
         self.hook_bios = None         # fn(self, name, addr)
         self.cd_base = [0, 0]         # track-relative sector bases (code 1/2)
+        self._bios_enabled = True     # False = run the real System Card code
         # ---- CD-ROM drive interface ($1800-$180F) --------------------
         self.cd_state = "idle"      # idle | param | data | done
         self.cd_params = bytearray()
@@ -105,7 +106,7 @@ class PCESystem(object):
         * The I/O page ($0000-$1FFF, minus the stack page) is active when
           MPR0 = $FF; otherwise that range is ordinary banked memory.
         """
-        if 0xE000 <= addr <= 0xE0FF and addr in BIOS:
+        if self._bios_enabled and 0xE000 <= addr <= 0xE0FF and addr in BIOS:
             # The System Card ROM is a JMP table: the byte at the entry point
             # is not an opcode.  Run the shim, then return RTS so the CPU
             # pops the return address the JSR pushed and carries on.
