@@ -86,9 +86,14 @@ emulated in `tools/pce_system.py`.
 
 ## Remaining blocker
 
-The title/menu loop runs, but forcing the START branch (`$4167` -> `$42AA`)
-leads to a fade/wait loop at `$44DA`, not to a new disc load.  The game
-engine/stages are not entered, so no per-stage VRAM/BAT dump exists yet.
+The title/menu loop runs.  Forcing the START branch (`$4167` -> `$42AA`)
+leads to a fade/wait loop at `$44DA`.  Forcing the resident-overlay path
+(`$42E8`) does read sectors 32–39 (absolute 3247–3254) and execute the
+overlay, but it returns to the title loop at `$412C`; it is the title/menu
+engine, not the game.
+
+The game engine/stages are not entered, so no per-stage VRAM/BAT dump exists
+yet.
 
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.

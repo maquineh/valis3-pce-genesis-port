@@ -22,7 +22,7 @@ for n in range(1, 3000001):
 before = set(emu.disc.reads)
 print('title loaded, reads', len(before), 'pc', hex(emu.cpu.pc), 'mpr', emu.cpu.mpr)
 # Enter the START branch directly (the pad edge is lost between IRQ and the loop)
-emu.cpu.pc = 0x4167
+emu.cpu.pc = 0x42E8
 emu.mem[0x1F0000 + 0x3C00] = 0
 
 calls = []
