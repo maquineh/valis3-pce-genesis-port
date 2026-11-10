@@ -54,19 +54,41 @@ The BIOS initialises the VDC, detects the CD unit, scans the TOC, reads the
 IPL sectors, compares the 1237-byte boot signature against the card's table at
 physical `$3FAE1`, and calls the game's boot block at `$2B26`.
 
+## The 74-byte check was a false alarm
+
+The boot block compares 74 bytes at `$3020` with `$DFB6` (MPR6=$1F ->
+physical ROM `$3FFB6`).  The reference is the copyright string
+`PC Engine CD-ROM SYSTEM / Copyright HUDSON SOFT / NEC Home Electronics`.
+`$3020` is in **sector 1**, and sector payloads are 2048 bytes inside a
+2352-byte frame.  The correct file offset is therefore
+`1*2352 + 16 + 0x20 = 0x960`, not `0x820`.  At `0x960` the disc contains the
+same 74-byte string and the check passes.
+
+## Startup/title program
+
+After the check, the boot block loads track-relative sector 8 (4 sectors) to
+logical `$4000` with MPR2=$80 (physical `$100000`) and jumps there.  That
+overlay is the disc's startup program ("Start up program by JUNPEH").  It:
+
+* reads sector 12 (40 KB) to VRAM word `$1000` and sector 40 (8 KB) to
+  VRAM word `$7000` — the title tiles;
+* uploads the palettes and VDC tables;
+* runs a title/menu loop at logical `$412C`, polling the BIOS joypad edge
+  byte `$222D`.
+
+The 2352-byte sector stride had been ignored in the earlier static analysis,
+which is why the title tiles/maps never resolved.  With the real BIOS the
+tiles are now in VRAM (see `build/gfx/game_boot_tiles100.png`).
+
+The PCE pad is read as two active-low nibbles selected by `$1000`: the first
+read is directions, the second is buttons (Run = bit 3).  This is now
+emulated in `tools/pce_system.py`.
+
 ## Remaining blocker
 
-The game boot block at `$2B26` starts with a 74-byte compare:
+The title/menu loop runs, but forcing the START branch (`$4167` -> `$42AA`)
+leads to a fade/wait loop at `$44DA`, not to a new disc load.  The game
+engine/stages are not entered, so no per-stage VRAM/BAT dump exists yet.
 
-```
-$3020 vs $DFB6   (MPR6=$01 -> physical ROM $3FB6)
-```
-
-That check still fails: the disc sector's `$3020` area does not match the
-card's signature table.  The block returns without entering the game, so no
-game VRAM/stage dump is possible yet.  The disc's first 1237 bytes *do* match
-the table at `$3FAE1` exactly, so the failure is specifically in the 74-byte
-area/address mapping and is the next thing to resolve.
-
-**Stages 2–10 are still not delivered.**  Nothing in this pass produced a
-per-stage VRAM/BAT dump.
+**Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
+ISO and the BIOS/title execution are verified; the game stages are not.

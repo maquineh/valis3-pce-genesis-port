@@ -16,7 +16,7 @@ Telenet/Laser Soft, 1990) to the **Sega Mega CD**.
 | Original soundtrack burned as CD-DA + `.cue` | ✅ `tools/mcd_make_disc.py` |
 | Title screen (real PC Engine tiles/map/palette + CD-DA music) | ✅ `game/src/game.c` |
 | HuC6280 CPU core + VDC/VCE + CD BIOS shim | ✅ `tools/test_cpu.py` (16/16 PASS) |
-| **Real System Card v3.0 boot (unshimmed)** | ✅ from reset `$E0F3`: VDC init → CD unit detection → TOC scan → sector reads → 1237-byte signature verify → game boot block at `$2B26` (`tools/trace_boot_real.py`, `docs/bios-boot-progress.md`) |
+| **Real System Card v3.0 boot (unshimmed)** | ✅ from reset `$E0F3`: VDC init → CD unit detection → TOC scan → 1237-byte signature verify → boot block at `$2B26` → disc startup/title program (`$100000`) with title tiles in VRAM (`tools/trace_boot_real.py`, `tools/boot_capture.py`, `docs/bios-boot-progress.md`) |
 | **Stages 2–10** | ❌ **not delivered** |
 | Stage 1 | ⚠️ module present, but its graphics are an **unverified placeholder** with the wrong tile base (`docs/stage-1-correction.md`) |
 

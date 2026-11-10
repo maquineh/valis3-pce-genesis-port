@@ -263,7 +263,7 @@ class HuC6280(object):
             return (self.abs_addr() + self.x) & 0xFFFF
 
         def aby():
-            return (self.abs_addr() + self.y) & 0xFF
+            return (self.abs_addr() + self.y) & 0xFFFF
 
         addr = None
         val = 0

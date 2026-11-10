@@ -107,6 +107,10 @@ class PCESystem(object):
         self.cd_ack = False         # $1802 bit7: clears status bit6
         self.cd_result = b""
         self.cd_result_pos = 0
+        # PCE joypad is read as two active-low nibbles selected by $1000 bit0.
+        self.joy_select = 0
+        self.joy_low = 0x0F         # Up/Right/Down/Left
+        self.joy_high = 0x0F        # II/I/Select/Run (Run = bit3)
         self.cd_flags = 0x00
         self.cd_cmd = 0x00
         self.cd_unlock = 0x0000     # $18C0 unlocks with $AA then $55
@@ -198,7 +202,9 @@ class PCESystem(object):
             return 0
         if addr == 0x1807:
             return 1
-        if 0x1000 <= addr < 0x1400:      # joypad: nothing pressed
+        if addr == 0x1000:               # joypad nibble (active low)
+            return self.joy_low if self.joy_select == 0 else self.joy_high
+        if 0x1000 < addr < 0x1400:
             return 0xFF
         if 0x1400 <= addr < 0x1800:      # CD-ROM data: not ready
             return 0
@@ -228,6 +234,9 @@ class PCESystem(object):
                 self.mem[0x1F0000 + (0x222D & 0x1FFF)] = 8
             return True
         if 0x18C1 <= addr <= 0x18C7:
+            return True
+        if addr == 0x1000:               # joypad select
+            self.joy_select = val & 1
             return True
         if addr == 0x1801:               # SCSI parameter byte
             self._cd_write_param(val)

@@ -168,6 +168,25 @@ def main():
          "pc=%04X A=%02X" % (cpu.pc, cpu.a))
     ok &= cpu.pc == 0x02 and cpu.a == 0x42
 
+    # Absolute,Y must wrap at 16 bits, not at 8 (this broke STA $224C,Y
+    # in the System Card's CDB builder).
+    mem = bytearray(1 << 21)
+    mem[0] = 0xA9        # LDA #$5A
+    mem[1] = 0x5A
+    mem[2] = 0x99        # STA $224C,Y
+    mem[3] = 0x4C
+    mem[4] = 0x22
+    mem[0x224D] = 0
+    cpu = HuC6280(lambda a: mem[a], lambda a, v: mem.__setitem__(a, v & 0xFF))
+    cpu.mpr = [0xF8, 0xF8] + [0] * 6
+    cpu.pc = 0
+    cpu.y = 1
+    run_until(cpu, n=2)
+    line(mem[0x224D] == 0x5A,
+         "STA abs,Y wraps at 16 bits (not 8)",
+         "mem[224D]=%02X" % mem[0x224D])
+    ok &= mem[0x224D] == 0x5A
+
     # --- 3. TAM / MPR mapping -------------------------------------------
     mem = bytearray(1 << 21)
     for i in range(16):

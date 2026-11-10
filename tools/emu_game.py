@@ -31,13 +31,24 @@ BOOT_ENTRY = 0x2B26
 
 
 class Disc(object):
+    # The BIOS's recbase0 for this disc is 3215 (the drive LBA of the first
+    # sector of track 2).  The extracted track_02.bin starts at that sector,
+    # so absolute LBAs >= 3215 are rebased; early relative reads (0..5) pass
+    # through unchanged.
+    TRACK2_BASE = 3215
+
     def __init__(self, path):
         self.b = open(path, "rb").read()
         self.reads = []
 
     def read_sector(self, n):
         self.reads.append(n)
-        return self.b[n * 2352 + 16:n * 2352 + 16 + 2048]
+        if n >= self.TRACK2_BASE:
+            n -= self.TRACK2_BASE
+        off = n * 2352 + 16
+        if off < 0 or off + 2048 > len(self.b):
+            return b"\x00" * 2048
+        return self.b[off:off + 2048]
 
     def read_sectors(self, n, count):
         return b"".join(self.read_sector(n + i) for i in range(count))
