@@ -104,6 +104,13 @@ found in VRAM, not in physical RAM, and a `cd_exec`-pattern scan of the image
 only finds false positives inside the bitmap data.  The loader sites reported
 for this overlay in the old notes are therefore not executable entry points.
 
+The overlays at 968/1172 are also visual programs
+(`"VALIS III OPENING visual by Junpeh"`).  They execute 976 (the act card),
+32 (resident overlay) and 956 (a **VISUAL DEBUGGER Ver1.40 by Junpeh**).
+Running the 956 overlay directly loads sectors 40–43 and writes 40 KB of
+VRAM, but the resulting screen is a blank debugger panel (the tool expects a
+development/serial side), not a stage selector reachable from the joypad.
+
 After the act card the game issues reads with LBA `-150` (the drive lead-in /
 audio area) and does not load the stage engine.  The same limitation remains:
 the game engine/stages are not entered, so no per-stage VRAM/BAT dump exists
