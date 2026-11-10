@@ -55,6 +55,9 @@ def main():
     line("screens decoded" in sc.stdout,
          "tools/screen_chain.py walks the stage-1 screens",
          [l for l in sc.stdout.splitlines() if "consecutive" in l])
+    sl = run("python3 tools/test_stage_logic.py")
+    line("ALL PASS" in sl.stdout,
+         "tools/test_stage_logic.py (stage 1 resources + streaming logic)")
 
     print("== 4. Mega CD build ==")
     line(os.path.isfile("game/makefile"), "game/ (megadev Mega CD project)")
