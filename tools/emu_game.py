@@ -46,6 +46,7 @@ class Disc(object):
         # reads the lead-in/audio area at 24-bit LBA -150, which maps to the
         # first sector of this file.
         self.audio = None
+        self.audio_phase = False        # True once the opening audio starts
         import glob
         a = glob.glob("build/retail/*Track 01).bin")
         if a:
@@ -55,7 +56,7 @@ class Disc(object):
         self.reads.append(n)
         if n > 0x7FFFFF:                # 24-bit negative LBA
             n -= 0x1000000
-        if n < 0 and self.audio:
+        if self.audio and (n < 0 or (self.audio_phase and n < self.TRACK2_BASE)):
             off = (n + 150) * 2352
             if 0 <= off + 2048 <= len(self.audio):
                 return self.audio[off:off + 2048]
