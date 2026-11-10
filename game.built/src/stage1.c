@@ -27,7 +27,7 @@ extern u8 res_player_spr;
 #define HSCROLL_ADDR 0xBC00 /* BIOS default horizontal scroll table */
 #define SCREEN_W 32
 #define SCREEN_H 28
-#define MAX_SCROLL_X 96    /* the decoded screen is 320px wide (40 cells) */
+#define MAX_SCROLL_X 256   /* plane A is 64 cells wide (512px), screen 256px */
 
 typedef struct
 {
@@ -40,6 +40,8 @@ static Player player;
 static s16 scroll_x;
 
 static vdp_reg const stage_vdp_regs[] = {
+    /* plane A 64 cells wide x 32 high, screen in 32-cell (240p) mode */
+    (VDP_REG_PL_SIZE & 0xFF00) | (VDP_PL_W64 | VDP_PL_H32),
     VDP_REG_MODE4,                    /* 32-cell screen, no interlace */
     0};
 
@@ -54,12 +56,18 @@ static void stage_load(void)
   /* palette: 64 colours (4 palette lines) */
   bios_load_pal_update((Palette *)&res_stage1_pal);
 
-  /* plane A: clear then write the 32x28 PC Engine map */
+  /* plane A: clear then write the 32x28 PC Engine map twice.
+   * The second copy is the placeholder "rest of the stage" area until the
+   * remaining stage maps are decoded - it makes the scroll window real. */
   bios_plane_fill(
     to_vdp_addr(BIOS_VDP_DEFAULT_PLANEA) | VRAM_W,
-    Width32, SCREEN_H, 0);
+    Width64, 32, 0);
   bios_load_map(
     to_vdp_addr(BIOS_VDP_DEFAULT_PLANEA) | VRAM_W,
+    SCREEN_W - 1, SCREEN_H - 1, &res_stage1_map);
+  bios_load_map(
+    to_vdp_addr(BIOS_VDP_DEFAULT_PLANEA
+                + VDP_PLANE_POS(SCREEN_W, 0, Width64)) | VRAM_W,
     SCREEN_W - 1, SCREEN_H - 1, &res_stage1_map);
 
   /* plane B behind the stage */

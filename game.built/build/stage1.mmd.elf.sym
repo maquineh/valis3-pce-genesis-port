@@ -18,10 +18,10 @@
 0020019c T main
 0020040c T _RODATA_ORIGIN
 0020040c t stage_vdp_regs
-00200410 T res_stage1_tiles
-00203c70 T res_stage1_pal
-00203cf2 T res_stage1_map
-002043f2 T res_player_spr
+00200412 T res_stage1_tiles
+00203c72 T res_stage1_pal
+00203cf4 T res_stage1_map
+002043f4 T res_player_spr
 00204474 T _ROM_DATA_ORIGIN
 00ff00a8 A vblank_user
 00ffc000 A MODULE_RAM_ORIGIN
