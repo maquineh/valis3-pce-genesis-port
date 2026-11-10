@@ -42,9 +42,24 @@ class Disc(object):
     def __init__(self, path):
         self.b = open(path, "rb").read()
         self.reads = []
+        # CD-DA track 1 (from the retail cue/bin set).  The opening visual
+        # reads the lead-in/audio area at 24-bit LBA -150, which maps to the
+        # first sector of this file.
+        self.audio = None
+        import glob
+        a = glob.glob("build/retail/*Track 01).bin")
+        if a:
+            self.audio = open(a[0], "rb").read()
 
     def read_sector(self, n):
         self.reads.append(n)
+        if n > 0x7FFFFF:                # 24-bit negative LBA
+            n -= 0x1000000
+        if n < 0 and self.audio:
+            off = (n + 150) * 2352
+            if 0 <= off + 2048 <= len(self.audio):
+                return self.audio[off:off + 2048]
+            return b"\x00" * 2048
         if n >= self.TRACK2_BASE:
             n -= self.TRACK2_BASE
         off = n * 2352 + 16
