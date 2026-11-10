@@ -60,7 +60,40 @@ $23E3F6  JSR $959B
 the master loader reads a 4-sector chunk to `$8000`, the chunk's code uploads
 tiles/palette through the VDC ports, and the next chunk is read.
 
-### Why this still does not yield the stage BATs directly
+### The multi-read setup routine `$847C` (verified, file `$23E80C`)
+
+This is the routine the stage entry calls right after `cd_fade`, and it is
+completely coherent:
+
+```
+$23E80C  LDA $F5 ; AND #$01 ; STA $F5
+$23E812  LDA #$18 ; JSR $895D
+$23E817  LDA #$00 ; STA $FC          cl = 0
+         LDA #$00 ; STA $FD          ch = 0
+         LDA #$00 ; STA $FE          dl = 0    -> sector 0
+         LDA #$1D ; STA $F8          al = 29
+         STZ $FF                     dh = 0
+         LDA #$00 ; STA $FB ; STZ $FA           dest $0000
+         JSR $E033                   ad_trans (ADPCM load)
+$23E836  LDA #$00 ; STA $FC/$FD
+         LDA #$20 ; STA $FE          dl = $20  -> sector 32
+         LDA #$FF ; STA $FF          dh = $FF
+         STZ $FA ; LDA #$10 ; STA $FB           dest $1000
+         STZ $F9 ; LDA #$18 ; STA $F8           al = 24 sectors
+         JSR $E009                   cd_read
+$23E85C  LDA #$00 ; STA $FC/$FD
+         LDA #$38 ; STA $FE          dl = $38  -> sector 56
+         LDA #$05 ; STA $FF          dh = $05
+         LDA $FFF5 ; CLC ; ADC #$05 ; STA $FA   bl = $FFF5+5
+         LDA #$08 ; STA $F8          al = 8 sectors
+         JSR $E009                   cd_read
+```
+
+So the stage data is streamed in three passes: an ADPCM transfer, a 24-sector
+read from sector 32, and an 8-sector read from sector 56.  `cd_read` with
+`dh=$FF` uses `al` as the **sector count** and `bx` as a local-RAM address,
+while `dh=$FE` (used by the tile blocks decoded in
+`tools/list_vram_reads.py`) uses `ah:al` as a **byte count** into VRAM.
 
 The chunk code uploads tiles with `TIA ..., $0200, ...` and palettes through
 the resident overlay's `$8CD9` routine, but the *map* (BAT) upload happens
