@@ -41,13 +41,15 @@ def main():
         line(os.path.isfile(p), p)
 
     print("== 3. Extracted PC Engine assets ==")
-    for f in ("title_tiles", "title_map", "title_pal"):
+    for f in ("title_tiles", "title_map", "title_pal",
+              "stage1_tiles", "stage1_map", "stage1_pal", "player_spr"):
         p = "game/res/gfx/%s.bin" % f
         line(os.path.isfile(p), p, "%d bytes" % os.path.getsize(p) if os.path.isfile(p) else "")
 
     print("== 4. Mega CD build ==")
     line(os.path.isfile("game/makefile"), "game/ (megadev Mega CD project)")
     line(os.path.isfile("game/src/game.c"), "game/src/game.c (title screen module)")
+    line(os.path.isfile("game/src/stage1.c"), "game/src/stage1.c (stage 1 module)")
     iso = "build/valis3.iso"
     line(os.path.isfile(iso), iso, "%d bytes" % os.path.getsize(iso)
          if os.path.isfile(iso) else "")
@@ -57,7 +59,7 @@ def main():
              repr(d[0:16]))
         line(d[0x1F0:0x200].startswith(b"JUE"), "region field", repr(d[0x1F0:0x200]))
         line(d[16 * 2048:16 * 2048 + 1] == b"\x01", "ISO9660 PVD present")
-        for name in (b"IPX.MMD", b"GAME.MMD", b"SPX.SMD"):
+        for name in (b"IPX.MMD", b"GAME.MMD", b"STAGE1.MMD", b"SPX.SMD"):
             line(d.find(name) >= 0, "ISO contains %s" % name.decode())
 
     print("== 5. Final disc with the original soundtrack ==")

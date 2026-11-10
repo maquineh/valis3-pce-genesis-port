@@ -92,6 +92,6 @@ void main(void)
 
   engine_stop_cdda();
 
-  /* loop back to the title module for now */
-  next_module = FILE_GAME_MMD;
+  /* proceed to stage 1 */
+  next_module = FILE_STAGE1_MMD;
 }

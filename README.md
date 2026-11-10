@@ -18,7 +18,7 @@ original CD audio soundtrack.
 | Bootable Mega CD ISO (boot sector, security code, IP/SP, IPX, game module) | ✅ `game/` → `dist/valis3_mcd.iso` |
 | Original soundtrack burned as CD-DA tracks + `.cue` | ✅ `tools/mcd_make_disc.py` |
 | Title screen running on Mega CD (tiles/map/palette + CD-DA music) | ✅ built (see `game/src/game.c`) |
-| Stage 1..10 gameplay | 🚧 in progress |
+| Stage 1 graphics + stage module (scrolling + player sprite) | 🚧 first screen in |
 
 ## Where things are
 

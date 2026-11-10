@@ -36,6 +36,7 @@ include $(MEGADEV_PATH)/megadev.make
 all: \
 	$(DISC_PATH)/ipx.mmd \
 	$(DISC_PATH)/game.mmd \
+	$(DISC_PATH)/stage1.mmd \
 	$(PROJECT_ID).iso
 
 clean:
@@ -56,4 +57,12 @@ $(DISC_PATH)/game.mmd: \
 	std_init.s \
 	game.c \
 	game_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 1: the decoded PC Engine stage screen + scrolling test
+$(DISC_PATH)/stage1.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage1.c \
+	stage1_res.s \
 	$(DISC_PATH)/ipx.mmd
