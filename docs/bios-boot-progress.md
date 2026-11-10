@@ -103,8 +103,10 @@ render black (palette 0 dominates) and do not describe a screen.
 Treating the STG1A map as byte-swapped and 28 rows (the PCE screen height)
 produces coherent repeated bands, but the words are `0x0100` runs and
 pattern-like tile values (`0x51d`, `0x41c`, `0x222`, `0x303`) with many
-zeros — not a valid 32x28 BAT.  The stage map/palette encoding is therefore
-still unknown.
+zeros — not a valid 32x28 BAT.  Rendering the first 896 track-6 tiles in
+sequential screen order is almost entirely black, so the track-6 tile sheet
+is a tileset, not a screen-order stream.  The stage map/palette encoding is
+therefore still unknown.
 
 ## Remaining blocker
 
