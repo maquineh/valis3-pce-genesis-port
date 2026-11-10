@@ -14,7 +14,6 @@ extern u8 next_module;
 extern u8 res_title_tiles;
 extern u8 res_title_pal;
 extern u8 res_title_map;
-
 /* Music: the original PC Engine soundtrack, burned as CD-DA tracks.
  * Disc track 2 = PCE track 1 (the title screen music). */
 #define CDDA_TITLE 2
