@@ -121,3 +121,34 @@ currently ends the run in a $0000 loop after a few steps, so the drive
 handshake ($1800 status/command, $1801 parameters/data, $18C0 unlock,
 $18C1- results) still has to be completed before A = 0 is returned
 and the boot reaches JMP .
+
+
+## Progress: the disc boot code runs and issues a real cd_read
+
+Bypassing the drive handshake and installing what the BIOS installs on a
+successful check - boot block payload at physical \ (logical \,
+MPR2-6 = \..\) - the disc's own boot code executes:
+
+`
+entry \ (file \):
+  JSR \                 ex_dspoff
+  LDA \ ; STA \     al = boot parameter
+  LDA \ ; STA \     bl
+  LDA \ ; STA \     bh
+  JSR \                cd_read       <- REAL disc read (sector 0)
+  LDA \ ; CLC ; ADC \ ; TAM #\   MPR2 =   ...
+  JMP (\)
+`
+
+Evidence: disc reads: [0], and MPR becomes FF F8 80 05 06 07 08 00
+(MPR2 = \, i.e. logical \ -> physical \, Super CD RAM).
+
+So the boot code and its BIOS calls work; what fails afterwards is the
+**entry pointer at work RAM \**, which ends in empty memory (\,
+146k iterations of a no-op loop) because the parameters at logical
+\-\ are only populated when the boot block is placed at logical
+\ (the v1.0 layout), not at \ (the v3.0 layout).
+
+To finish: run the real \ disc check so the BIOS itself loads the boot
+block to the right place and fills those parameters, instead of installing
+them heuristically.

@@ -92,6 +92,11 @@ class PCESystem(object):
         self.cd_pos = 0
         self.cd_flags = 0x00
         self.cd_cmd = 0x00
+        self.cd_unlock = 0x0000     # $18C0 unlocks with $AA then $55
+        self.cd_result = [0x00] * 8  # $18C1-$18C7 result bytes
+        self.cd_ready = 0x01        # "CD-ROM2 unit present"
+        self.cd_disc = 0x01         # "disc present"
+        self.cd_track = 0x02        # first data track
 
     # ------------------------------------------------------------------ io
     def read(self, addr):
@@ -144,6 +149,16 @@ class PCESystem(object):
             return 0
         if addr in (0x0C00, 0x0C01, 0x0C02):
             return 0
+        if 0x18C0 <= addr <= 0x18C7:     # CD unit unlock / results
+            if addr == 0x18C0:
+                return 0x00
+            if addr == 0x18C1:
+                return self.cd_ready
+            if addr == 0x18C2:
+                return self.cd_disc
+            if addr == 0x18C3:
+                return self.cd_track
+            return self.cd_result[addr - 0x18C0]
         if addr == 0x1800:               # drive status
             return {"idle": 0x00, "param": 0xD0, "data": 0x80,
                     "done": 0x98}.get(self.cd_state, 0x00)
@@ -178,6 +193,14 @@ class PCESystem(object):
             if 0xF8 <= addr <= 0xFF:
                 self.wa[addr] = val
             return
+        if addr == 0x18C0:               # unlock / mode
+            self.cd_unlock = ((self.cd_unlock << 8) | (val & 0xFF)) & 0xFFFF
+            if self.cd_unlock == 0xAA55:
+                self.cd_ready = 0x01
+                self.cd_state = "param"
+            return True
+        if 0x18C1 <= addr <= 0x18C7:
+            return True
         if addr == 0x1801:               # parameter byte
             if self.cd_state in ("param", "idle"):
                 self.cd_params.append(val)
