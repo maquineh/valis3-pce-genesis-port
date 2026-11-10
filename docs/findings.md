@@ -134,11 +134,41 @@ $0C8000-  further mixed data
 ```
 
 `tools/find_maps.py` only locates **plain** 32x28 BATs (the menu/title maps).
-The gameplay stage maps are *not* stored as plain BATs on the disc, so the
-per-screen stage extraction needs the tile/VVRAM base of each screen, which is
-still being reverse engineered (see "Open items").
+
+### Stage screens
+
+| Screen | Map (track 2) | Tiles | Palette | Notes |
+|---|---|---|---|---|
+| Stage 1, screen 1 | `$17FF90` | `$19440` (loader: sector $2C → VRAM $1000, 48 KiB) | `$9352` | decoded: terrain, platforms; 451 distinct tiles. Packed by `tools/pack_stage.py` into `game/res/gfx/stage1_*` and running in `game/src/stage1.c`. |
+
+A stage screen's map is a 32x28 BAT whose tile indices are **relative to the
+tile block the loader reads for that screen** (base `$200` for the stage
+blocks below), then remapped to VRAM tile `$100`.
+
+Trying to locate the next stage screens produced this evidence:
+
+* The loader's VRAM-bound stage tile blocks (`tools/list_vram_reads.py`) are
+  sector `$2C` → `$19440` (48 KiB), `$2F` → `$1AFD0` (48 KiB), `$30` →
+  `$1B900` (40 KiB), `$34` → `$1DDC0` (24 KiB), `$4D4` → `$2C5BC0` (48 KiB),
+  `$4F4` → `$2D81C0` (32 KiB), `$4A4` → `$2AA2C0` (24 KiB), `$514` → `$2EA7C0`
+  (24 KiB).
+* Hundreds of 896-word windows across `$B0000-$1F0000` use all 16 palette
+  nibbles, but when rendered with those tile blocks they show tiles scattered
+  over black rather than terrain — i.e. they are object/animation tables, not
+  playfield BATs.
+* `$17FF90` is so far the only window that renders as a real playfield
+  (platforms + terrain) with the sector-44 block.
 
 ## 7. Open items
+
+- Locate the remaining stage screens: find the map for each of the eight
+  sector-* tile blocks above (the render test above is the method; a wider
+  scan with per-block colour palettes is the next step).
+- Sprite (SAT/SG) data for the characters (Yuko/Cham/Valna), enemies, items
+  and bosses; `game/res/gfx/player_spr.bin` is currently engine test art.
+- Stage geometry/collision, and the game logic (player physics, enemy AI,
+  boss patterns) — the stage 1 module now scrolls plane A and moves a sprite,
+  but no collisions or enemies yet.
 
 
 - **Palette data** not yet located. Uploads are block transfers to the VCE
