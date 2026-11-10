@@ -111,10 +111,26 @@ Running the 956 overlay directly loads sectors 40–43 and writes 40 KB of
 VRAM, but the resulting screen is a blank debugger panel (the tool expects a
 development/serial side), not a stage selector reachable from the joypad.
 
-After the act card the game issues reads with LBA `-150` (the drive lead-in /
-audio area) and does not load the stage engine.  The same limitation remains:
-the game engine/stages are not entered, so no per-stage VRAM/BAT dump exists
-yet.
+A scan of all eight 4-sector code chunks (988, 1000, 1020, 1040, 1060, 1080,
+1120, 1128) shows that none reads the stage blocks at sectors 304–704.  They
+load only visual/opening/omake sectors (24/32/44/56/1124/1236/1268/1284…):
+
+```
+1000: read 32 (24 sectors) -> $1000 dh=FF ; read 56 (8) -> $1000 dh=05
+1020: read 29 (20) -> $1000 ; read 49 (12) -> $1000
+1040: read 27 (20) -> $0000 ; read 47 -> $1000 dh=FE
+1060: read 0 (24) -> $1000 ; read 55 (12) -> $0000
+1080: read 24 (20) -> $0000 ; read 44 -> $1000 dh=FE
+1120: read 1124 (2) -> $0000 ; read 32 (8) -> $0000 ; read 64 (20) -> $2000
+1128: read 1236/1268 -> $1000 dh=FE ; read 1284 (16) -> $1000
+```
+
+Together with the `VISUAL DEBUGGER`, the `VALIS III OPENING/ACT visual`
+strings and the 18 data tracks of visual programs, this is strong evidence
+that the supplied image is a **visual/debug build, not the retail playable
+game disc**.  The playable stage code/data is not reached (and may not be on
+this image at all).  The same limitation remains: no per-stage VRAM/BAT dump
+exists yet.
 
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.
