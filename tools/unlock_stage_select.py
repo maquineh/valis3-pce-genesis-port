@@ -35,9 +35,13 @@ before = set(emu.disc.reads)
 emu.joy_high = 0x06       # Up+Left active-low
 emu.joy_low = 0x0C        # I+II active-low
 run(120000)               # ~60 frames
+print('held: 2228=%02X 222D=%02X 3C00=%02X' %
+      (emu.mem[0x1F0228], emu.mem[0x1F022D], emu.mem[0x1F3C00]))
 # Press RUN while keeping the combo held
 emu.joy_low = 0x04        # I+II+Run
 run(30000)                # ~15 frames
+print('run : 2228=%02X 222D=%02X 3C00=%02X' %
+      (emu.mem[0x1F0228], emu.mem[0x1F022D], emu.mem[0x1F3C00]))
 # Release RUN, keep the combo
 emu.joy_low = 0x0C
 run(30000)

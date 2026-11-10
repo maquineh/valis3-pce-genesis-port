@@ -197,5 +197,11 @@ stage-select code.  The combo is being interpreted as CONTINUE/confirm and
 `$4360` calls a RAM routine that is not populated (likely the save-manager
 path).  The hidden stage-select trigger itself has not been reached.
 
+The joypad state confirms the input mapping is correct: while held,
+`$2228=0x93` (Up+Left+II+I) and with RUN `$2228=0x9B`.  The first MPR change
+after the combo is `MPR4=$F7` at BIOS `$FC76`, i.e. the backup-RAM/save-manager
+path, which ends at the zero RAM routine.  This is a title/save-flow
+emulation gap, not a button-mapping error.
+
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.
