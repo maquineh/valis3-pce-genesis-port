@@ -35,7 +35,9 @@ class Disc(object):
     # sector of track 2).  The extracted track_02.bin starts at that sector,
     # so absolute LBAs >= 3215 are rebased; early relative reads (0..5) pass
     # through unchanged.
-    TRACK2_BASE = 3215
+    # Track 2 INDEX 01 is at absolute frame 3590 (track 1 = 3365 frames plus
+    # the 225-sector pregap); the drive LBA is frame - 150 = 3440.
+    TRACK2_BASE = 3440
 
     def __init__(self, path):
         self.b = open(path, "rb").read()

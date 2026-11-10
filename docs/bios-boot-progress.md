@@ -125,12 +125,23 @@ load only visual/opening/omake sectors (24/32/44/56/1124/1236/1268/1284…):
 1128: read 1236/1268 -> $1000 dh=FE ; read 1284 (16) -> $1000
 ```
 
-Together with the `VISUAL DEBUGGER`, the `VALIS III OPENING/ACT visual`
-strings and the 18 data tracks of visual programs, this is strong evidence
-that the supplied image is a **visual/debug build, not the retail playable
-game disc**.  The playable stage code/data is not reached (and may not be on
-this image at all).  The same limitation remains: no per-stage VRAM/BAT dump
-exists yet.
+The separate `Valis III (Japan).zip` is the **retail cue/bin set** (72
+tracks).  Its track 2 has an explicit 225-sector pregap (INDEX 00 at
+00:00:00, INDEX 01 at 00:03:00), and:
+
+```
+zip track2[225*2352:] MD5 = e885c79e62e348de85822917b7809fdb
+current track_02.bin MD5  = e885c79e62e348de85822917b7809fdb
+```
+
+So the data is identical; the project cue had simply placed track 2 at the
+**pregap start** (`00:44:65`) instead of INDEX 01 (`00:47:65`).  The TOC in
+`tools/pce_system.py` now reports `00:47:65` and `tools/emu_game.py` rebases
+absolute LBAs at 3440 instead of 3215.
+
+The game still stops after the act-title card and issues reads with the
+24-bit LBA `-150` (track-1 lead-in/audio).  No stage engine is entered, so no
+per-stage VRAM/BAT dump exists yet.
 
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.

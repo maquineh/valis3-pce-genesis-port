@@ -724,8 +724,10 @@ class PCESystem(object):
                 data = bytes([0x52, 0x30, 0x28, 0x00])
             else:
                 if track == 0x02:
-                    # track 2 INDEX 01 = 00:44:65; control bit2 = data
-                    data = bytes([0x00, 0x44, 0x65, 0x04])
+                    # Correct retail cue: track 2 has a 3-second (225-sector)
+                    # pregap; INDEX 01 is at absolute 00:47:65, not the
+                    # pregap start 00:44:65.  control bit2 = data.
+                    data = bytes([0x00, 0x47, 0x65, 0x04])
                 elif track == 0x01:
                     data = bytes([0x00, 0x00, 0x00, 0x00])
                 else:
