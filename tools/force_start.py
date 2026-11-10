@@ -15,23 +15,23 @@ emu.cpu.sp = 0xFF
 
 for n in range(1, 3000001):
     emu.cpu.step()
-    if n % 20000 == 0 and not emu.cpu.fI:
+    if n % 2000 == 0 and not emu.cpu.fI:
         emu.vdc_status |= 0x20
         emu.cpu.interrupt(0xFFF8)
 
 before = set(emu.disc.reads)
 print('title loaded, reads', len(before), 'pc', hex(emu.cpu.pc), 'mpr', emu.cpu.mpr)
 # Enter the START branch directly (the pad edge is lost between IRQ and the loop)
-emu.cpu.pc = 0x42E8
+emu.cpu.pc = 0x4167
 emu.mem[0x1F0000 + 0x3C00] = 0
 
 calls = []
-for n in range(1, 4000001):
+for n in range(1, 12000001):
     pc = emu.cpu.pc
     mn = emu.cpu.step()
     if mn in ('JSR', 'JMP', 'RTS') and n > 1000:
         calls.append((n, pc, mn, emu.cpu.pc))
-    if n % 20000 == 0 and not emu.cpu.fI:
+    if n % 2000 == 0 and not emu.cpu.fI:
         emu.vdc_status |= 0x20
         emu.cpu.interrupt(0xFFF8)
 

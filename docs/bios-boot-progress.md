@@ -88,11 +88,25 @@ emulated in `tools/pce_system.py`.
 
 The title/menu loop runs.  Forcing the START branch (`$4167` -> `$42AA`)
 leads to a fade/wait loop at `$44DA`.  Forcing the resident-overlay path
-(`$42E8`) does read sectors 32–39 (absolute 3247–3254) and execute the
-overlay, but it returns to the title loop at `$412C`; it is the title/menu
-engine, not the game.
+(`$42E8`) reads sectors 32–39 (absolute 3247–3254) and executes the overlay,
+but it returns to the title loop at `$412C`; it is the title/menu engine, not
+the game.
 
-The game engine/stages are not entered, so no per-stage VRAM/BAT dump exists
+With enough emulated frames (IRQ every 2000 steps, 12M steps) the START path
+also reads **sectors 976–987**.  That payload starts with
+
+```
+80 21 "VALIS III ACT0 visual by Junpeh "
+```
+
+and is a **graphic act-title card, not code**: after the read the string is
+found in VRAM, not in physical RAM, and a `cd_exec`-pattern scan of the image
+only finds false positives inside the bitmap data.  The loader sites reported
+for this overlay in the old notes are therefore not executable entry points.
+
+After the act card the game issues reads with LBA `-150` (the drive lead-in /
+audio area) and does not load the stage engine.  The same limitation remains:
+the game engine/stages are not entered, so no per-stage VRAM/BAT dump exists
 yet.
 
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
