@@ -92,7 +92,32 @@ $287BEC, $2A1072 … (one group per stage/segment).
 - Tile sets contain large amounts of dither-pattern tiles ⇒ the game displays
   dithered full-screen stills (cutscenes) using ramp palettes.
 
-## 6. Open items
+## 6. Screen layout on the disc
+
+Decoded screens so far:
+
+| Screen | Tiles (track 2 file offset) | Map (BAT) | Palette | How identified |
+|---|---|---|---|---|
+| Title / attract | `$6E00` (read: sector $0C → VRAM word $1000, 40 KiB) | `$123D40` | `$2B49` (64 BG colours) | decoded loader + rendered |
+| Menu / config ("PRINT") | `$0000` (read: sector $00 → VRAM word $2000) | `$0B0EA0` | (VCE words in `$B0EA0` area) | BAT scan + rendered |
+
+Map/PALETTE/TILE block layout in track 2 (`tools/` classifier in
+`tools/find_maps.py`, block classifier: see `tools/map_tracks.py`):
+
+```
+$0000000  credits text + interleaved data
+$018000-  ~576 KiB of 8x8 tile sets for many screens
+$0B0000   maps, palettes and UI tile clusters (menu screens)
+$0C8000-  further mixed data
+```
+
+`tools/find_maps.py` only locates **plain** 32x28 BATs (the menu/title maps).
+The gameplay stage maps are *not* stored as plain BATs on the disc, so the
+per-screen stage extraction needs the tile/VVRAM base of each screen, which is
+still being reverse engineered (see "Open items").
+
+## 7. Open items
+
 
 - **Palette data** not yet located. Uploads are block transfers to the VCE
   colour-data port ($0404) from sources such as $4B49/$6B49/$8B49/$BA8D with
