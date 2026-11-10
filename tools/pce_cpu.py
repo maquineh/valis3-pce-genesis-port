@@ -38,6 +38,7 @@ for c, mn, md, cyc in [
     (0x31, "AND", IZY, 5), (0x32, "AND", IZP, 5), (0x35, "AND", ZPX, 4),
     (0x36, "ROL", ZPX, 6), (0x38, "SEC", IMP, 2), (0x39, "AND", ABY, 4),
     (0x3D, "AND", ABX, 4), (0x3E, "ROL", ABX, 7),
+    (0x1A, "INC", ACC, 2), (0x3A, "DEC", ACC, 2),
     (0x40, "RTI", IMP, 6), (0x41, "EOR", IZX, 6), (0x45, "EOR", ZP, 3),
     (0x46, "LSR", ZP, 5), (0x48, "PHA", IMP, 3), (0x49, "EOR", IMM, 2),
     (0x4A, "LSR", ACC, 2), (0x4C, "JMP", ABS, 3), (0x4D, "EOR", ABS, 4),
@@ -51,11 +52,13 @@ for c, mn, md, cyc in [
     (0x71, "ADC", IZY, 5), (0x72, "ADC", IZP, 5), (0x75, "ADC", ZPX, 4),
     (0x76, "ROR", ZPX, 6), (0x78, "SEI", IMP, 2), (0x79, "ADC", ABY, 4),
     (0x7D, "ADC", ABX, 4), (0x7E, "ROR", ABX, 7), (0x81, "STA", IZX, 6),
-    (0x84, "STY", ZP, 3), (0x85, "STA", ZP, 3), (0x86, "STX", ZP, 3),
+    (0x84, "STY", ZP, 3), (0x85, "STA", ZP, 3),
+    (0x64, "STZ", ZP, 3), (0x86, "STX", ZP, 3),
     (0x88, "DEY", IMP, 2), (0x8A, "TXA", IMP, 2), (0x8C, "STY", ABS, 4),
     (0x8D, "STA", ABS, 4), (0x8E, "STX", ABS, 4), (0x90, "BCC", REL, 2),
     (0x91, "STA", IZY, 6), (0x92, "STA", IZP, 5), (0x94, "STY", ZPX, 4),
     (0x95, "STA", ZPX, 4), (0x96, "STX", ZPY, 4), (0x98, "TYA", IMP, 2),
+    (0x9C, "STZ", ABS, 4),
     (0x99, "STA", ABY, 5), (0x9A, "TXS", IMP, 2), (0x9D, "STA", ABX, 5),
     (0xA0, "LDY", IMM, 2), (0xA1, "LDA", IZX, 6), (0xA2, "LDX", IMM, 2),
     (0xA4, "LDY", ZP, 3), (0xA5, "LDA", ZP, 3), (0xA6, "LDX", ZP, 3),
@@ -311,6 +314,8 @@ class HuC6280(object):
             self.set_nz(self.y)
         elif mn == "STA":
             write(addr, self.a)
+        elif mn == "STZ":
+            write(addr, 0)
         elif mn == "STX":
             write(addr, self.x)
         elif mn == "STY":
@@ -434,13 +439,19 @@ class HuC6280(object):
             else:
                 write(addr, val)
         elif mn == "INC":
-            val = (val + 1) & 0xFF
+            val = (self.a if md == ACC else val) + 1 & 0xFF
             self.set_nz(val)
-            write(addr, val)
+            if md == ACC:
+                self.a = val
+            else:
+                write(addr, val)
         elif mn == "DEC":
-            val = (val - 1) & 0xFF
+            val = (self.a if md == ACC else val) - 1 & 0xFF
             self.set_nz(val)
-            write(addr, val)
+            if md == ACC:
+                self.a = val
+            else:
+                write(addr, val)
         elif mn == "TSB":
             val |= (1 << 0) & 0
             self.set_nz(val)
