@@ -88,13 +88,18 @@ emulated in `tools/pce_system.py`.
 
 The earlier stage renders used raw 2352-byte sectors, which cross the CD
 header/ECC every 2352 bytes.  A payload-contiguous image
-(`build/extracted/data/track_02_payload.bin`, 2048 bytes/sector) was built
-and `STG1A` at sector 304 re-examined.  The block starts cleanly with
-`STG1A`, but the candidate maps at +0x29F0/+0x2A00 contain random-looking
-tile fields (`0xd1d`, `0xc1c`, `0x222`, `0x303`, palettes 0..14), not a
-narrow BAT.  Regions of the block are all-zero, so the stage data is
-compressed/encoded rather than a plain map+tile block.  No loader or
-decompressor for this format has been identified.
+(`build/track_02_payload.bin`, 2048 bytes/sector) was built and `STG1A` at
+sector 304 re-examined.  The block starts cleanly with `STG1A`, but the
+candidate maps at +0x29F0/+0x2A00 contain random-looking tile fields
+(`0xd1d`, `0xc1c`, `0x222`, `0x303`, palettes 0..14), not a narrow BAT.
+Regions of the block are all-zero, so the stage data is compressed/encoded
+rather than a plain map+tile block.  No loader or decompressor for this
+format has been identified.
+
+The other data tracks were also checked.  Track 6 (payload-contiguous) has a
+**coherent 4bpp tile sheet at offset 0**, but its 0x600-byte BAT candidates
+render black (palette 0 dominates) and do not describe a screen.  The stage
+map/palette encoding is therefore still unknown.
 
 ## Remaining blocker
 

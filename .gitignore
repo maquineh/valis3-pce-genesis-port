@@ -26,3 +26,4 @@ __pycache__/
 .vscode/
 .idea/
 build/track_02_payload.bin
+build/track_06_payload.bin
