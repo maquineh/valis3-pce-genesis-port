@@ -1,52 +1,37 @@
-## 7. Where the levels are (decoded)
+## Stage 2-10: what blocks the split (evidence this pass)
 
-Screen maps are **32x24 cells, one 0x600-byte block per screen**, laid out
-consecutively on a grid. A screen's tile indices are **relative to the tile
-block the loader read for that screen**, with `base $200` verified by render:
+### What is on the disc
 
-* `tools/render_bat.py … $19440 base $200` → terrain/platforms (correct)
-* `tools/render_bat.py … $19440 base $100` → dense dither (wrong)
+The 0x600 map grid in `track_02` runs from `$17FF90` (stage 1) to `$238D90+`
+(≈341 slots). A scan requiring *playfield structure* (>=25% of tiles inside the
+stage tile-block range, a >=16-cell horizontal run of identical tiles, and
+>=100 distinct tiles) yields ~30 groups. Rendering them shows:
 
-### Stage 1 (fully decoded)
-
-| item | value |
+| offset range | what renders |
 |---|---|
-| first map | `$17FF90` (track 2) |
-| screens | 10 (`tools/screen_chain.py`) |
-| tile block | `$19440` (loader: sector `$2C` → VRAM word `$1000`, 48 KiB) |
-| palette | `$9352` (64 BG colours) |
-| packed | `game/res/gfx/stage1_all_{tiles,maps,pal}` (1297 tiles, 41504 B) |
-| rendered | `build/gfx/stage1_screens.png` (contact sheet) |
+| `$17FF90`-`$183590` | **stage 1 playfields** (10 screens) - the only playfields found |
+| `$0B0000`-`$170000` | title screen, config menu, and **Japanese dialog / cutscene frames** (`$0F64F0`, `$151FA0`, `$13B020`, `$0DEE90` all show text over dithered art) |
+| `$180000`-`$240000` | tiles scattered over black (object / collision tables) |
 
-The stage-1 module (`game/src/stage1.c`) loads all 10 screens and streams them
-through the 64-cell plane A like the original (current screen at columns 0-31,
-next at 32-63, pair redrawn on each screen boundary).
+So the *other nine stage terrains are not stored as plain 32x24 BATs in
+track_02*.
 
-### Why stages 2-10 are not split yet
+### Where they must be
+Each stage has its own data track (`track_06`, `track_08`, ... `track_36`) with
+~190 KiB at the start that renders as the game's dither artwork, followed by
+records of **4 bytes** at regular intervals (e.g. `track_06 @ $2E000`:
+78 records per 4 KiB, patterns `[00][lo][hi][flags]` then `[count][00][00][00]`).
+Those records are the next thing to decode - they are the compressed stage
+description (and/or the object/collision list) for the remaining stages.
 
-The map grid runs from `$17FF90` to `$238D90+` (≈341 slots), but most slots do
-**not** render as playfields with any of the nine known stage tile blocks -
-they render as tiles scattered over black or as dithered text (cutscene and
-dialog frames). Evidence gathered this pass:
+### Tools that are ready for it
+- `tools/render_multi.py` - render a map whose tiles come from several VRAM
+  regions (needed once the multi-block VRAM layout per stage is known).
+- `tools/match_blocks.py`, `tools/assign_by_range.py` - block matching helpers.
+- `tools/pack_stage_all.py` - packs any stage's screens once the maps are
+  found (already used for stage 1).
+- `game/src/stage1.c` - the streaming engine to copy for `stageN.c`.
 
-| tool | finding |
-|---|---|
-| `tools/match_blocks.py` | per-block render scoring: no block separates playfields from object data |
-| `tools/assign_blocks.py` | "art tile" fraction prefers `s514` everywhere → misleading |
-| `tools/assign_by_range.py` | maps only cover 31-41% of their block's tile range → screens use tiles from several VRAM regions, so range coverage cannot identify the block |
-| `tools/palette_profile.py` | palette nibble mix changes at *every* screen → not a stage boundary signal |
-| `tools/coherence.py` | 4x4 pattern diversity is similar for right and wrong blocks → not a separator |
-
-Screen-group "leaders" (maps with a strong `$200-$2FF` tile concentration,
-`tools/assign_by_range.py` reference run) are at `$0B1200`, `$123E00` (title),
-`$0F5C00`, `$152000`, `$0DEE00`, `$0C8000`, `$10CA00`, `$13B200`, `$17FC00`
-(stage 1) ... plus more in `$0C0000-$170000`. Rendering them with the stage-1
-block shows title/menu/cutscene frames (one clearly shows Japanese dialog text
-at `$13B200`), not new playfields.
-
-So stages 2-10 are **present on the disc** (the loader reads nine distinct
-stage tile blocks: sectors `$2C`, `$2F`, `$30`, `$34`, `$44`, `$4A4`, `$4D4`,
-`$4F4`, `$514`) but their *playfield* maps still have to be matched per screen.
-The next step is a per-screen visual match: render each candidate screen with
-each block and keep the pair whose render shows terrain (the same procedure
-that produced stage 1).
+### Done already (verified)
+- Stage 1: 10 screens, 1297 tiles, streaming module, all static tests pass
+  (`tools/test_stage_logic.py`), contact sheet `build/gfx/stage1_screens.png`.
