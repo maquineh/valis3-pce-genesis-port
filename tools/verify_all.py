@@ -42,9 +42,19 @@ def main():
 
     print("== 3. Extracted PC Engine assets ==")
     for f in ("title_tiles", "title_map", "title_pal",
-              "stage1_tiles", "stage1_map", "stage1_pal", "player_spr"):
+              "stage1_all_tiles", "stage1_all_maps", "stage1_all_pal",
+              "player_spr"):
         p = "game/res/gfx/%s.bin" % f
         line(os.path.isfile(p), p, "%d bytes" % os.path.getsize(p) if os.path.isfile(p) else "")
+    meta = "game/res/gfx/stage1_all.json"
+    if os.path.isfile(meta):
+        m = json.load(open(meta))
+        line(m.get("screens", 0) >= 10,
+             "stage 1: %s screens decoded from the PC Engine disc" % m.get("screens"))
+    sc = run("python3 tools/screen_chain.py 0x17FF90 0x19440 40")
+    line("screens decoded" in sc.stdout,
+         "tools/screen_chain.py walks the stage-1 screens",
+         [l for l in sc.stdout.splitlines() if "consecutive" in l])
 
     print("== 4. Mega CD build ==")
     line(os.path.isfile("game/makefile"), "game/ (megadev Mega CD project)")

@@ -164,23 +164,5 @@ Trying to locate the next stage screens produced this evidence:
   dither noise - that region is a dithered animation/image, not playfields.
   The playfield BATs are elsewhere and still need decoding.
 
-## 7. Open items
-
-- Locate the remaining stage screens: find the map for each of the eight
-  sector-* tile blocks above (the render test above is the method; a wider
-  scan with per-block colour palettes is the next step).
-- Sprite (SAT/SG) data for the characters (Yuko/Cham/Valna), enemies, items
-  and bosses; `game/res/gfx/player_spr.bin` is currently engine test art.
-- Stage geometry/collision, and the game logic (player physics, enemy AI,
-  boss patterns) — the stage 1 module now scrolls plane A and moves a sprite,
-  but no collisions or enemies yet.
-
-
-- **Palette data** not yet located. Uploads are block transfers to the VCE
-  colour-data port ($0404) from sources such as $4B49/$6B49/$8B49/$BA8D with
-  length $2000; those addresses live in whichever 8 KB page the MPR registers
-  have mapped, so static identification requires following the overlay loads.
-  Greyscale rendering is used for identification in the meantime.
-- BAT tables for the other screens/stages (only the title BAT pinned so far).
-- Sprite (SAT/SG) layout per stage.
-- Overlay → CPU address mapping table (needed to read the stage logic code).
+See **docs/stage-layout.md** for the decoded stage map grid, stage 1 and
+what still has to be split into the ten stages.
