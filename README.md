@@ -22,8 +22,23 @@ original CD audio soundtrack.
 
 ## Where things are
 
-- `tools/` – all extraction / conversion tools (Python 3).
-  `tools/build_megacd.ps1` builds `game/` inside the `megacd-build` Docker image.
+- `tools/` – all extraction / conversion / build tools (Python 3).
+  - `tools/cue_split.py` – splits the source PC Engine image (18 data tracks +
+    54 CD-DA audio tracks); the image has no per-sector CD metadata, so it is
+    a continuous 2352-byte/frame stream.
+  - `tools/disasm6280.py` – HuC6280 (65C02 + block transfers) disassembler.
+  - `tools/find_bios_calls.py`, `tools/decode_cd_calls.py`,
+    `tools/list_vram_reads.py` – decode the game's CD-ROM² System Card loader
+    (sector → VRAM/RAM/MPR destinations).
+  - `tools/find_maps.py`, `tools/render_bat.py`, `tools/extract_screens.py` –
+    locate PC Engine screen maps (BATs) and render them with their tiles.
+  - `tools/pce2md.py` – convert PC Engine tiles / palettes / maps to Mega
+    Drive format.
+  - `tools/build_megacd.ps1` – builds `game/` inside the `megacd-build`
+    Docker image (megadev + m68k gcc + mkisofs).
+  - `tools/mcd_make_disc.py` – assembles the final Mega CD disc (data ISO +
+    the original soundtrack as CD-DA tracks + `.cue` + track manifest).
+  - `tools/verify_all.py` – checks every deliverable end to end.
 - `game/` – the Mega CD source (megadev project: `src/`, `res/`, `makefile`).
 - `game/res/gfx/` – assets converted from the PC Engine disc (title screen).
 - `dist/` – the built disc: `valis3_mcd.iso` + `valis3_mcd.cue` +
