@@ -1,75 +1,71 @@
 ﻿# Valis III — PC Engine CD → Sega Mega CD port
 
 Port of **Valis III** (PC Engine CD-ROM², `Valis_3_(NTSC-J)_[TJCD0009]`,
-Telenet/Laser Soft, 1990) to the **Sega Mega CD**, with all stages and the
-original CD audio soundtrack.
+Telenet/Laser Soft, 1990) to the **Sega Mega CD**.
 
-## Status
+## Honest status
 
 | Piece | State |
 |---|---|
 | Disc split (18 data tracks + 54 CD-DA audio tracks) | ✅ `tools/cue_split.py` |
-| Original soundtrack extracted (54 tracks, ~44 min, all verified non-silent) | ✅ `tools/audio_inventory.py` |
+| Original soundtrack (54 tracks, ~50 min, all non-silent) | ✅ `tools/audio_inventory.py` |
 | HuC6280 disassembler + CD BIOS loader table decoded | ✅ `tools/disasm6280.py`, `tools/decode_cd_calls.py` |
-| Sector → file offset mapping (sector N = byte N×2352) | ✅ verified (title tiles) |
-| Title screen graphics: tiles + BAT + palette extracted & rendered | ✅ `tools/render_bat.py` |
 | PCE → Mega Drive tile/palette/map converter | ✅ `tools/pce2md.py` |
-| Mega CD build toolchain (megadev + m68k gcc + mkisofs) | ✅ `tools/megacd-build/` + `tools/build_megacd.ps1` |
-| Bootable Mega CD ISO (boot sector, security code, IP/SP, IPX, game module) | ✅ `game/` → `dist/valis3_mcd.iso` |
-| Original soundtrack burned as CD-DA tracks + `.cue` | ✅ `tools/mcd_make_disc.py` |
-| Title screen running on Mega CD (tiles/map/palette + CD-DA music) | ✅ built (see `game/src/game.c`) |
-| Stage 1: all 10 decoded screens + stage module (scrolling + player sprite) | ✅ `game/src/stage1.c` |
-| Stages 2-10 (map region decoded, stage tables pending) | 🚧 `tools/walk_stages.py` |
-| Enemies, bosses, collisions, HUD | 🚧 pending |
+| Mega CD build toolchain (megadev + m68k gcc + mkisofs) | ✅ `tools/build_megacd.ps1` |
+| Bootable Mega CD ISO (security code, IP/SP, IPX, game module) | ✅ `tools/verify_all.py` (41 checks, 0 FAIL) |
+| Original soundtrack burned as CD-DA + `.cue` | ✅ `tools/mcd_make_disc.py` |
+| Title screen (real PC Engine tiles/map/palette + CD-DA music) | ✅ `game/src/game.c` |
+| HuC6280 CPU core + VDC/VCE + CD BIOS shim | ✅ `tools/test_cpu.py` (14/14 PASS) |
+| **Stages 2–10** | ❌ **not delivered** |
+| Stage 1 | ⚠️ module present, but its graphics are an **unverified placeholder** with the wrong tile base (`docs/stage-1-correction.md`) |
+
+**The objective — a port with all ten stages — is not met.** What is
+delivered and verified is the complete original soundtrack, the title screen,
+and a bootable Mega CD disc.
+
+## Why stages 2–10 are missing
+
+The game does **not** store ready-made background maps for the stages on the
+disc. It keeps the playfield in a ~64 KiB RAM buffer and shifts it by 8 tiles
+at a time (`docs/upload-routines.md`, routine at logical `$8790`), so the BAT
+only exists in VRAM at run time.
+
+Recovering it therefore requires **running the game**, which needs a working
+PC Engine CD-ROM² emulator. That work is documented but incomplete:
+
+- `docs/system-card-boot.md` — the verified System Card boot chain (the
+  disc's boot sector matches the card's 1237-byte reference exactly).
+- `docs/cd-protocol.md` — the CD drive register map (`$1800` status/command,
+  `$1801` parameter/data, `$18C0` unlock, `$18C1-$18C7` results) derived from
+  the card's own driver, plus the verified v3.0 boot path that ends in
+  `JMP $4000` with `MPR2-6 = $04..$08`.
+- `docs/stage-segments.md` — the ten stage segments (`STG1A`, `STG2A/B/C`,
+  `STG3A/B`, `STG4A/B/C`, `STG5A`) at 40-sector intervals with their own VCE
+  palettes.
+
+The emulator reaches the point of executing the disc's boot code and issuing
+a real `cd_read`, but the drive handshake is not complete, so the game never
+boots to a playable screen and no per-stage VRAM dump exists.
+
+## Fastest way to finish
+
+Provide emulator **save states** (Mednafen or RetroArch + Beetle PCE) with
+each stage loaded. `tools/pack_stage_all.py` can then pack the real VRAM
+contents directly, without completing the CD drive emulation.
 
 ## Where things are
 
-- `tools/` – all extraction / conversion / build tools (Python 3).
-  - `tools/cue_split.py` – splits the source PC Engine image (18 data tracks +
-    54 CD-DA audio tracks); the image has no per-sector CD metadata, so it is
-    a continuous 2352-byte/frame stream.
-  - `tools/disasm6280.py` – HuC6280 (65C02 + block transfers) disassembler.
-  - `tools/find_bios_calls.py`, `tools/decode_cd_calls.py`,
-    `tools/list_vram_reads.py` – decode the game's CD-ROM² System Card loader
-    (sector → VRAM/RAM/MPR destinations).
-  - `tools/find_maps.py`, `tools/render_bat.py`, `tools/render_stage_sheets.py`
-    – locate PC Engine screen maps (BATs) and render them with their tiles.
-  - `tools/pce2md.py`, `tools/pack_stage.py`, `tools/pack_stage_all.py` –
-    convert/pack PC Engine screens into Mega Drive resources.
-  - `tools/screen_chain.py`, `tools/walk_stages.py`,
-    `tools/enumerate_maps.py`, `tools/match_blocks.py` – walk the stage screen
-    grid (one 0x600-byte 32×24 map per screen) and match tile blocks.
-  - `tools/gen_player_spr.py` – generates engine test sprite art.
-  - `tools/build_megacd.ps1` – builds `game/` inside the `megacd-build`
-    Docker image (megadev + m68k gcc + mkisofs).
-  - `tools/mcd_make_disc.py` – assembles the final Mega CD disc (data ISO +
-    the original soundtrack as CD-DA tracks + `.cue` + track manifest).
-  - `tools/verify_all.py` – checks every deliverable end to end.
+- `tools/` – extraction, conversion and build tools (Python 3).
 - `game/` – the Mega CD source (megadev project: `src/`, `res/`, `makefile`).
-- `game/res/gfx/` – assets packed from the PC Engine disc (title, stage 1).
-- `dist/` – the built disc: `valis3_mcd.iso` + `valis3_mcd.cue` +
-  `valis3_mcd_audio/` (the original soundtrack as WAV) + `valis3_mcd.json`
-  (track manifest used by the game code).
-- `docs/findings.md`, `docs/stage-layout.md` – everything learned about the
-  original disc and where the levels are.
-- `docs/hardware-limits.md` – Mega Drive / Mega CD VDP limits (80 sprites,
-  20 per line, 64 colours) that constrain this port.
+- `dist/` – `valis3_mcd.iso` + `valis3_mcd.cue` + `valis3_mcd_audio/`
+  (the original soundtrack as WAV) + `valis3_mcd.json`.
+- `docs/` – all findings, including the honest gaps.
 
 ## Build
 
 ```powershell
-# 1) build the toolchain image once (megadev + m68k-gcc + mkisofs)
 docker build -t megacd-build C:\projetos\tools\megacd-build
-
-# 2) build the Mega CD ISO
 powershell -ExecutionPolicy Bypass -File tools/build_megacd.ps1
-
-# 3) assemble the final disc with the original soundtrack
 python3 tools/mcd_make_disc.py build/valis3.iso dist/valis3_mcd all
-
-# 4) verify every deliverable
 python3 tools/verify_all.py
 ```
-
-`dist/valis3_mcd.cue` + `dist/valis3_mcd.iso` + `dist/valis3_mcd_audio/*.wav`
-is the playable disc.
