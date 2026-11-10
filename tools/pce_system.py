@@ -84,6 +84,13 @@ class PCESystem(object):
         self.steps = 0
         self.hook_bios = None         # fn(self, name, addr)
         self.cd_base = [0, 0]         # track-relative sector bases (code 1/2)
+        # ---- CD-ROM drive interface ($1800-$180F) --------------------
+        self.cd_state = "idle"      # idle | param | data | done
+        self.cd_params = bytearray()
+        self.cd_buf = b""
+        self.cd_pos = 0
+        self.cd_flags = 0x00
+        self.cd_cmd = 0x00
 
     # ------------------------------------------------------------------ io
     def read(self, addr):
@@ -136,6 +143,23 @@ class PCESystem(object):
             return 0
         if addr in (0x0C00, 0x0C01, 0x0C02):
             return 0
+        if addr == 0x1800:               # drive status
+            return {"idle": 0x00, "param": 0xD0, "data": 0x80,
+                    "done": 0x98}.get(self.cd_state, 0x00)
+        if addr == 0x1801:               # data byte
+            if self.cd_state == "data" and self.cd_pos < len(self.cd_buf):
+                byte = self.cd_buf[self.cd_pos]
+                self.cd_pos += 1
+                if self.cd_pos >= len(self.cd_buf):
+                    self.cd_state = "done"
+                return byte
+            return 0
+        if addr in (0x1802, 0x1803, 0x180A, 0x180C):
+            return self.cd_flags
+        if addr == 0x1806:
+            return 0
+        if addr == 0x1807:
+            return 1
         if 0x1000 <= addr < 0x1400:      # joypad: nothing pressed
             return 0xFF
         if 0x1400 <= addr < 0x1800:      # CD-ROM data: not ready
@@ -153,6 +177,20 @@ class PCESystem(object):
             if 0xF8 <= addr <= 0xFF:
                 self.wa[addr] = val
             return
+        if addr == 0x1801:               # parameter byte
+            if self.cd_state in ("param", "idle"):
+                self.cd_params.append(val)
+            return True
+        if addr == 0x1800:               # command
+            self.cd_command(val)
+            return True
+        if addr == 0x1802:
+            if val == 0x00:
+                self.cd_flags &= 0xFF
+            return True
+        if addr in (0x1803, 0x1804, 0x1805, 0x1809, 0x180B, 0x180D,
+                    0x180E, 0x180F):
+            return True
         if addr == 0x0000:               # VDC register select
             self.vdc_reg = val & 0x1F
             return True
@@ -498,6 +536,26 @@ class PCESystem(object):
 
     def bios_ex_colorcmd(self):
         return 0
+
+    # ------------------------------------------------- CD-ROM drive
+    def cd_command(self, cmd):
+        """Interpret a write to $1800 using the parameters collected so far."""
+        self.cd_cmd = cmd
+        if cmd == 0x81:                       # reset / init
+            self.cd_state = "param"
+            self.cd_params.clear()
+            return
+        if cmd in (0x00, 0x01, 0x02, 0x03, 0x04, 0x08, 0x09):
+            return                             # stop / pause / scan
+        # a read command: parameters are sector(3) + count(1) + ...
+        p = self.cd_params
+        if len(p) >= 4:
+            sector = (p[0] << 16) | (p[1] << 8) | p[2]
+            count = p[3] or 1
+            self.cd_buf = self.disc.read_sectors(sector, count)
+            self.cd_pos = 0
+            self.cd_state = "data" if self.cd_buf else "done"
+        self.cd_params.clear()
 
     def _vram_store(self, word):
         a = self.mawr & 0xFFFF
