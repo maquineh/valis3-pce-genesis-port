@@ -173,5 +173,16 @@ the opening stops after reading lead-in sectors `-150..-25` (126 distinct
 reads) and never reaches the stage engine.  No per-stage VRAM/BAT dump
 exists yet.
 
+## Hidden stage-select attempt
+
+The Japanese title screen has a documented hidden stage select: hold
+Up+Left+I+II, then press RUN.  The emulator now feeds the two active-low
+joypad nibbles (`joy_high=0x06`, `joy_low=0x0C`, then `0x04` with RUN) and the
+combo does reach a new code path.  It then jumps into work RAM at `$0194`,
+walks a data table (`E2 E8 E2 E8 ...`) and dies at `$0202`; the MPRs end up
+holding code bytes (`F8 80 C0 A9 45 85 C1 20`).  This is a title/CPU/stack
+issue, not a missing disc overlay: no new sector is read.  No stage-select
+screen or stage VRAM was captured.
+
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.
