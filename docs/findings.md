@@ -158,6 +158,11 @@ Trying to locate the next stage screens produced this evidence:
   playfield BATs.
 * `$17FF90` is so far the only window that renders as a real playfield
   (platforms + terrain) with the sector-44 block.
+* A 1536-byte (0x600 = 32x24 tile) grid of screen-sized windows exists from
+  `$1F0000` upward (≥42 consecutive slots, `tools/enumerate_maps.py`), but
+  every slot matches a tile block with *all* tiles non-empty and renders as
+  dither noise - that region is a dithered animation/image, not playfields.
+  The playfield BATs are elsewhere and still need decoding.
 
 ## 7. Open items
 
