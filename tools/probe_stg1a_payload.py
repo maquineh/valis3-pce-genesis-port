@@ -1,4 +1,4 @@
-b = open('build/extracted/data/track_02_payload.bin', 'rb').read()
+b = open('build/track_02_payload.bin', 'rb').read()
 base = 304 * 2048
 print('block base', hex(base), 'size', hex(40 * 2048))
 for off in range(0, 40 * 2048, 0x800):
