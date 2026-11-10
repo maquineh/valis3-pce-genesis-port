@@ -1,53 +1,55 @@
-## Status: stages 2-10 are not delivered (honest state of the port)
+## Boot chain findings (this pass)
 
-The objective asks for all 10 stages plus the original soundtrack. What is
-built and verified today:
+The goal was to boot the game in an emulator to dump each stage's real VRAM.
+The CPU/VDC/VCE/CD-BIOS layer is now in place and unit-tested
+(`tools/test_cpu.py`, ALL PASS).  What the emulator established about the
+boot chain:
 
-| item | state | evidence |
-|---|---|---|
-| Original soundtrack (54 CD-DA tracks, ~50 min) | done | `dist/valis3_mcd.cue`, `dist/valis3_mcd.iso`, `dist/valis3_mcd_audio/*.wav`; `tools/audio_inventory.py` reports no silent track |
-| Bootable Mega CD ISO with security code / IP / SP / kernel | done | `tools/verify_all.py` - `SEGADISCSYSTEM`, region `JUE`, ISO9660, contains `IPX.MMD`, `GAME.MMD`, `STAGE1.MMD`, `SPX.SMD` |
-| Title screen (real PC Engine tiles/map/palette) + CD-DA music | done | `game/src/game.c`, `game/res/gfx/title_*`; rendered `build/gfx/title_final.png` |
-| **Stage 1** - all 10 decoded screens, streaming + player sprite | done | `game/src/stage1.c`, `game/res/gfx/stage1_all_*` (1297 tiles), `tools/test_stage_logic.py` ALL PASS, contact sheet `build/gfx/stage1_screens.png` |
-| Stages 2-10 | **not delivered** | - |
+### The IPL structure (verified from the disc)
 
-### Why 2-10 are blocked (tried this session, all evidence preserved)
+* Data track 2 sector frames are `16-byte header + 2048-byte user data +
+  288-byte ECC`.  `track_02.bin` is the **continuous frame stream**, so
+  `sector N` starts at byte offset `N*2352` and its payload at `N*2352+16`.
+* Sector 1 (offset 2352+16) is the volume descriptor: it contains a track
+  table and the strings `PC Engine CD-ROM SYSTEM` /
+  `Copyright HUDSON SOFT / NEC Home Electronics,Ltd.`.
+  Decoding the first 5-byte entries gives:
+  `track 1: ctrl=$40 m=00 s=40 f=00 no=01` → MSF `00:40:00`.
+* Sectors 0-7 are the **boot block** (16 KiB).  Its code spans only
+  `$03E0-$04E4`; the rest is tile/dither data.  The boot block is loaded into
+  work RAM (`$F8000` page, logical `$2000-$3FFF`) and entered at `$23E0`.
+* The boot code's `JMP ($2007)` reads the pointer stored in the boot block at
+  offset 7 → `$838D`.  With the MPR values the block itself specifies
+  (`$3008=0, $300A=$38, $300C=$38`), `$838D` resolves to physical `$7038D`,
+  which contains tile dither (`$E5E5…`), not code.
 
-1. The 0x600 map grid in `track_02` beyond stage 1 does not contain playfield
-   BATs. Scans with a playfield signature (coverage in the tile block range +
-   >=16-tile runs + >=150 distinct tiles) over:
-   * `$17FF90-$240000` of `track_02`
-   * `$000000-$B0000` of `track_02`
-   * `$000000-$30000` of every stage track (`track_06`..`track_36`, 13-60
-     candidates each)
+### Conclusion
 
-   ...all render as tiles scattered over black (object/collision lists) or as
-   dithered Japanese dialog frames, never as stage 1's terrain.
-2. Block matching fails in every automatic form tried:
-   `match_blocks.py` (render score), `assign_blocks.py` (art-tile fraction),
-   `assign_by_range.py` (index-range coverage), `coherence.py` (4x4 pattern
-   diversity), `palette_profile.py` (palette mix), tile bases
-   `$100/$200/$300/$400/$500/$700/$800/$F00`, tiles from the stage tracks
-   themselves, and `render_multi.py` (multi-VRAM-region tiles).
-3. The stage tiles blocks are known (`tools/list_vram_reads.py`: sectors
-   `$2C,$2F,$30,$34,$44,$4A4,$4D4,$4F4,$514`), but no map on the disc resolves
-   against them except stage 1's.
+The **game's main program is not inside the first 16 KiB of the data track**.
+The System Card IPL must load it (via the `cd_exec` path that the loader code
+decoded earlier in `tools/decode_cd_calls.py`: `cd_exec` sector `$20` → RAM
+`$4000`, `cd_exec` sector `$3D0` → RAM `$4000`) before the boot's final jump
+reaches real code.  Emulating that faithfully needs the copyrighted System
+Card BIOS, which is not in this repository, so the emulator can be brought
+only as far as the boot block.
 
-### The two concrete ways forward (documented for the next turn)
+### What is verified and usable now
 
-1. **Decode the stage tracks' 4-byte records.** After ~190 KiB of dither
-   artwork, each stage track carries records with an 86-byte structural
-   period (`[00][lo][hi][flags]` then `[count][00][00][00]`, e.g.
-   `track_06 @ $2E710`: `7DFE6B6A`/`062091F5`, `871FBDBE`/`0310C6`, ...).
-   Simple `[count][lo][hi]` RLE decoding of the region after the artwork
-   yields nonsense (tile values up to 65533), so the codec is not plain RLE and
-   still needs its decoder written.
-2. **Run the game and dump VRAM/BAT.** Blocked here by the missing PC Engine
-   CD-ROM² System Card BIOS (no copyrighted BIOS is shipped in this repo). The
-   next step is a HuC6280 core (opcode table already in
-   `tools/disasm6280.py`) plus VDC/VCE register modelling and a CD BIOS shim
-   implementing the nine functions the game actually calls (`cd_read`,
-   `cd_exec`, `cd_play`, `cd_search`, `cd_base`, `cd_stat`, `cd_pause`,
-   `cd_fade`, `ad_reset` - see `tools/find_bios_calls.py`).
+* `tools/pce_cpu.py` - HuC6280 core (all 65C02 opcodes + HuC6280 extensions,
+  7-byte block transfers TII/TDD/TIN/TIA/TAI, TAM/MPR banking, ST0/1/2 to the
+  hardwired VDC ports, branches with correct 3-byte BBR/BBS operands).
+* `tools/pce_system.py` - VDC (register select, MAWR auto-increment, VRAM
+  write log), VCE (colour index/data, CRAM), the CD BIOS work area mirror
+  (`$F8-$FF`), a shim for the 60+ System Card entry points the game calls,
+  and a stack page that stays RAM when MPR0 is switched to the I/O page.
+* `tools/trace_boot.py`, `tools/emulate_boot.py`, `tools/trace_boot.py` -
+  bootstrap drivers used to reach the conclusions above.
+* `tools/test_cpu.py` - 14 assertions covering the parts above.
 
-Everything above is committed in `origin/main` (`6f98f8c`).
+### The two ways forward (documented for the next turn)
+
+1. Decode the stage tracks' 4-byte records (period 86) - still the cheapest
+   fully-local path.
+2. Supply the System Card BIOS (copyrighted) so the emulator can complete
+   `cd_exec` and dump the real stage VRAM/BAT.
+

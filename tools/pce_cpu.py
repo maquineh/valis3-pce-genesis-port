@@ -103,23 +103,30 @@ for c, mn, cyc in [(0x73, "TII", 17), (0xC3, "TDD", 17), (0xD3, "TIN", 17),
                    (0xE3, "TIA", 17), (0xF3, "TAI", 17)]:
     op(c, mn, 15, cyc)   # mode 15 = BLOCK
 
-# RMB/SMB/BBR/BBS
+LENS = {IMP: 1, IMM: 2, ZP: 2, ZPX: 2, ZPY: 2, ABS: 3, ABX: 3, ABY: 3,
+        IZX: 2, IZY: 2, IZP: 2, REL: 2, ACC: 1, IND: 3, ABX_IND: 3, 15: 7}
+
+# RMB/SMB are 2-byte zp; BBR/BBS are 3-byte (zp + relative offset)
 for base in range(8):
     op(0x07 + base * 0x10, "RMB%d" % base, ZP, 5)
     op(0x87 + base * 0x10, "SMB%d" % base, ZP, 5)
-    op(0x0F + base * 0x10, "BBR%d" % base, REL, 5)
-    op(0x8F + base * 0x10, "BBS%d" % base, REL, 5)
 
-LENS = {IMP: 1, IMM: 2, ZP: 2, ZPX: 2, ZPY: 2, ABS: 3, ABX: 3, ABY: 3,
-        IZX: 2, IZY: 2, IZP: 2, REL: 2, ACC: 1, IND: 3, ABX_IND: 3, 15: 7}
+# 15 = block transfer (7-byte operands), 17 = BBR/BBS (zp + relative)
+BBR_MODE = 17
+LENS[BBR_MODE] = 3
+for base in range(8):
+    op(0x0F + base * 0x10, "BBR%d" % base, BBR_MODE, 5)
+    op(0x8F + base * 0x10, "BBS%d" % base, BBR_MODE, 5)
+
 
 
 class HuC6280(object):
     """Functional HuC6280 core with pluggable read/write hooks."""
 
-    def __init__(self, read, write):
+    def __init__(self, read, write, io_write=None):
         self.read = read          # fn(addr) -> byte
         self.write = write        # fn(addr, value)
+        self.io_write = io_write  # fn(addr, value): ST0/ST1/ST2 VDC ports
         self.a = self.x = self.y = 0
         self.sp = 0xFD
         self.pc = 0
@@ -179,17 +186,14 @@ class HuC6280(object):
 
     # ---- block transfers ------------------------------------------------
     def do_block(self, pc):
-        """Decode src/dst/length operands from the 7-byte instruction."""
+        """Decode the 7-byte operand: opcode SS ss DD dd LL ll -> src,dst,len."""
         ss = self.fetch()
         sl = self.fetch()
         dd = self.fetch()
         dl = self.fetch()
         ll = self.fetch()
         lh = self.fetch()
-        src = (self.sh << 16) | (ss << 8) | sl
-        dst = (self.dh << 16) | (dd << 8) | dl
-        ln = (self.lh << 16) | (ll << 8) | lh
-        return src, dst, ln
+        return (ss << 8) | sl, (dd << 8) | dl, (ll << 8) | lh
 
     # ---- execution ------------------------------------------------------
     def step(self):
@@ -259,7 +263,7 @@ class HuC6280(object):
             hi = read((p + 1) & 0xFF)
             a = (lo | (hi << 8)) & 0xFFFF
             addr = (a + self.y) & 0xFFFF if md == IZY else a
-        elif md == REL:
+        elif md == REL or md == BBR_MODE:
             pass
         elif md == IND:
             p = absa()
@@ -278,15 +282,16 @@ class HuC6280(object):
                 for k in range(ln):
                     write(dst, read(src + k))
             elif mn == "TIA":
-                alt = 0
-                for k in range(ln):
-                    write(dst + k, read(src + k))
-                    alt ^= 1
+                # TIA (Transfer and Increment / "alternate"): each source byte
+                # is written to two consecutive destinations and the source
+                # then advances - i.e. a byte-doubling copy.
+                for i in range(ln):
+                    write(dst + i, read(src + (i >> 1)))
             elif mn == "TAI":
-                alt = 0
-                for k in range(ln):
-                    write(dst + k, read(src + alt))
-                    alt ^= 1
+                # TAI: the source address advances only every *four* writes,
+                # which is how the game seeds a 32-bit repeating pattern.
+                for i in range(ln):
+                    write(dst + i, read(src + (i >> 2)))
             return
         else:
             raise RuntimeError("mode %d for %s" % (md, mn))
@@ -482,14 +487,18 @@ class HuC6280(object):
         elif mn in ("SMB0", "SMB1", "SMB2", "SMB3", "SMB4", "SMB5", "SMB6", "SMB7"):
             bit = int(mn[3])
             write(addr, val | (1 << bit))
-        elif mn in ("BBR0", "BBR1", "BBR2", "BBR3", "BBR4", "BBR5", "BBR6", "BBR7",
-                   "BBS0", "BBS1", "BBS2", "BBS3", "BBS4", "BBS5", "BBS6", "BBS7"):
+        elif mn.startswith(("BBR", "BBS")) and len(mn) == 4:
+            # opcode, zp, rel: read the zero page, test the bit, maybe branch.
+            # `addr` holds the zp operand (already fetched by the decoder) and
+            # the relative offset is the byte that follows.
             bit = int(mn[3])
             is_set = mn.startswith("BBS")
-            if bool(val & (1 << bit)) == is_set:
-                self.branch(True)
-            else:
-                self.branch(False)
+            zp = addr if addr is not None else self.fetch()
+            memval = read(zp)
+            taken = (memval & (1 << bit)) != 0
+            if is_set:
+                taken = not taken
+            self.branch(taken)
         elif mn == "CSH":
             pass
         elif mn == "CSL":
@@ -515,11 +524,11 @@ class HuC6280(object):
             self.x, self.y = self.y, self.x
             self.set_nz(self.x)
         elif mn == "ST0":
-            write(0x0000, val)
+            (self.io_write or write)(0x0000, val)
         elif mn == "ST1":
-            write(0x0002, val)
+            (self.io_write or write)(0x0002, val)
         elif mn == "ST2":
-            write(0x0003, val)
+            (self.io_write or write)(0x0003, val)
         elif mn == "TMA":
             self.a = self.mpr[val & 7] if False else self.mpr[val & 7]
         elif mn == "TAM":

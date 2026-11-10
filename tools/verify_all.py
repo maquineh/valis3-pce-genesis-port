@@ -58,6 +58,10 @@ def main():
     sl = run("python3 tools/test_stage_logic.py")
     line("ALL PASS" in sl.stdout,
          "tools/test_stage_logic.py (stage 1 resources + streaming logic)")
+    ct = run("python3 tools/test_cpu.py")
+    line("ALL PASS" in ct.stdout,
+         "tools/test_cpu.py (HuC6280 core: ALU, block transfers, MPR, ST0/1/2)",
+         [l for l in ct.stdout.splitlines() if "FAIL" in l])
 
     print("== 4. Mega CD build ==")
     line(os.path.isfile("game/makefile"), "game/ (megadev Mega CD project)")
