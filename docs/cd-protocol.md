@@ -68,3 +68,56 @@ and validated step by step in the emulator.  It is the last obstacle between
 the current state and real per-stage VRAM dumps; without it there is no way to
 obtain the stage maps, because the game *generates* them in RAM
 (`docs/upload-routines.md`) rather than storing ready-made BATs on the disc.
+
+
+## Correction (important)
+
+The flat image offset == physical address map **is** correct.  The earlier
+conclusion that it failed came from confusing two files: the **US**
+TurboGrafx CD Super System Card (USA) (v3.0).pce has NOP padding at
+$E0F3, while **syscard3.pce (JPN)** has real code there:
+
+`
+syscard3.pce[0x0F3] =   (SEI)      <- cd_boot entry
+syscard3.pce[0x106] =   (JSR )
+syscard3.pce[0x14B] =   (RTS)
+`
+
+## The real v3.0 boot ($E0F3, verified by disassembly)
+
+`
+  SEI ; CSH ; CLD
+  LDX # ; TXS
+  TXA ; TAM #              MPR0 =  (I/O page)
+  LDA # ; TAM #         MPR1 =  (work RAM)
+  BSR 
+  LDA # ; TAM #         MPR6 = 
+  JSR                    drive/VDC init
+  JSR                    disc check -> A
+  TAX ; BEQ              A = 0 -> good disc
+  BSR  ; LDA # ; TAM # ; JMP    (error)
+  JSR 
+  BSR 
+  BCC 
+  LDA # ; BSR         <- MPR bank table
+  JMP                    <- GAME ENTRY
+  LDA # ; BSR  ; JMP 
+  LDA 
+  TAM #                    MPR2 = A
+  INC A ; TAM #            MPR3 = A+1
+  INC A ; TAM #            MPR4 = A+2
+...                                MPR5 = A+3, MPR6 = A+4
+`
+
+With syscard3.pce[0x1FF5] =  the bank table becomes **MPR2-6 =
+$84..**, i.e. logical $4000 maps to physical **$108000**.  So in
+v3.0 the game's boot block is loaded into Super CD RAM at $108000 and
+entered at logical $4000.
+
+## Still missing
+
+JSR  (the disc check) loops waiting on the CD unit.  The emulator
+currently ends the run in a $0000 loop after a few steps, so the drive
+handshake ($1800 status/command, $1801 parameters/data, $18C0 unlock,
+$18C1- results) still has to be completed before A = 0 is returned
+and the boot reaches JMP .
