@@ -184,5 +184,12 @@ holding code bytes (`F8 80 C0 A9 45 85 C1 20`).  This is a title/CPU/stack
 issue, not a missing disc overlay: no new sector is read.  No stage-select
 screen or stage VRAM was captured.
 
+The follow-up trace shows the CPU entering zero-filled work RAM at `$0162`
+(return address `$4183`) and walking forward to `$0194`; the MPRs become
+`F8 80 C0 A9 45 85 C1 20` (code bytes).  No `TII/TIA/TDD/TIN` with
+destination `$0162` exists in the disc code, so the intended routine/vector
+is not being set up correctly by the emulated title path.  This remains a
+title/MPR/stack emulation bug, not a missing stage-select overlay.
+
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.

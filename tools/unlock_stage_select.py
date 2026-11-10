@@ -26,7 +26,7 @@ def run(n):
             emu.cpu.interrupt(0xFFF8)
 
 # boot to the title screen
-run(3000000)
+run(5000000)
 print('title: pc=%04X mpr=%s reads=%d' %
       (emu.cpu.pc, ' '.join('%02X' % m for m in emu.cpu.mpr), len(emu.disc.reads)))
 before = set(emu.disc.reads)
