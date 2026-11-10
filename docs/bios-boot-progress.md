@@ -141,10 +141,10 @@ absolute LBAs at 3440 instead of 3215.
 
 The game still stops after the act-title card and issues reads with the
 24-bit LBA `-150` (track-1 lead-in/audio).  The emulator now maps negative
-LBAs to the retail CD-DA track 1 (`build/retail/...Track 01.bin`), but the
-opening still loops: its code waits for the CD-DA playback state, not just
-audio bytes.  No stage engine is entered, so no per-stage VRAM/BAT dump
-exists yet.
+LBAs to the retail CD-DA track 1 (`build/retail/...Track 01.bin`) and
+implements vendor SCSI `D8/D9` plus a bounded `cd_stat` "playing" state
+(5000 polls), but the opening still loops on the lead-in `cd_read` calls
+before reaching the stage engine.  No per-stage VRAM/BAT dump exists yet.
 
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.

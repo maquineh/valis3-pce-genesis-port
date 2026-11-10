@@ -111,6 +111,7 @@ class PCESystem(object):
         self.joy_select = 0
         self.joy_low = 0x0F         # Up/Right/Down/Left
         self.joy_high = 0x0F        # II/I/Select/Run (Run = bit3)
+        self.cdda_reads = 0         # remaining cd_stat polls while CD-DA plays
         self.cd_flags = 0x00
         self.cd_cmd = 0x00
         self.cd_unlock = 0x0000     # $18C0 unlocks with $AA then $55
@@ -184,6 +185,15 @@ class PCESystem(object):
                    0x18C5: 0xAA, 0x18C6: 0x55, 0x18C7: 0x80}
             return sig.get(addr, 0x00)
         if addr == 0x1800:               # SCSI status
+            # The BIOS cd_stat routine ($F347) returns $1800 bit 7 to the
+            # caller.  While a D8/D9 CD-DA command is "playing", report
+            # bit7=1; after the counter expires, report stopped (bit7=0).
+            pc = self.cpu.pc
+            if 0xF340 <= pc <= 0xF356:
+                if self.cdda_reads > 0:
+                    self.cdda_reads -= 1
+                    return 0x80
+                return 0x00
             return self._cd_status()
         if addr == 0x1801:               # SCSI data / result byte
             return self._cd_read_byte()
@@ -712,6 +722,13 @@ class PCESystem(object):
         elif op == 0x03:                    # REQUEST SENSE
             self.cd_result = bytes(4)
             self.cd_state = "result"
+        elif op in (0xD8, 0xD9):            # CD-DA play (vendor commands)
+            # Pretend the requested audio track is playing for a bounded
+            # number of cd_stat polls, then report completion.
+            self.cdda_reads = 5000
+            self.cd_state = "done"
+            self.cd_result = b"\x00"
+            self.cd_result_pos = 0
         elif op == 0xDE:                    # CD_DINFO (TOC)
             # AL=0: min/max track; AL=1: lead-out MSF; AL=2: track start+control.
             al = p[1]
