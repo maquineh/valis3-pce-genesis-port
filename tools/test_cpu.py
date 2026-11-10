@@ -66,7 +66,8 @@ def main():
         mem = bytearray(1 << 21)
         for i in range(16):
             mem[0x100 + i] = 0xAA
-        prog = [opcode, 0x01, 0x00, 0x02, 0x00, 0x00, 0x10, 0x60]
+        # block operands are little-endian: $0100 -> $0200, length $0010
+        prog = [opcode, 0x00, 0x01, 0x00, 0x02, 0x10, 0x00, 0x60]
         for i, b in enumerate(prog):
             mem[i] = b
         cpu = HuC6280(lambda a: mem[a], lambda a, v: mem.__setitem__(a, v & 0xFF))
@@ -83,7 +84,7 @@ def main():
     mem = bytearray(1 << 21)
     for i in range(16):
         mem[0x100 + i] = 0xAA
-    prog = [0xD3, 0x01, 0x00, 0x02, 0x00, 0x00, 0x10, 0x60]
+    prog = [0xD3, 0x00, 0x01, 0x00, 0x02, 0x10, 0x00, 0x60]
     for i, b in enumerate(prog):
         mem[i] = b
     cpu = HuC6280(lambda a: mem[a], lambda a, v: mem.__setitem__(a, v & 0xFF))
@@ -99,34 +100,73 @@ def main():
     mem = bytearray(1 << 21)
     for i in range(16):
         mem[0x110 - i] = i          # mem[0x110]=0 ... mem[0x101]=15
-    prog = [0xC3, 0x01, 0x10, 0x02, 0x10, 0x00, 0x10, 0x60]
+    prog = [0xC3, 0x10, 0x01, 0x10, 0x02, 0x10, 0x00, 0x60]
     for i, b in enumerate(prog):
         mem[i] = b
     cpu = HuC6280(lambda a: mem[a], lambda a, v: mem.__setitem__(a, v & 0xFF))
     cpu.mpr = [0xF8, 0xF8] + [0] * 6
     cpu.pc = 0
     run_until(cpu)
+    ok &= bytes(mem[0x210 - i] for i in range(16)) == bytes(range(16))
     line(bytes(mem[0x210 - i] for i in range(16)) == bytes(range(16)),
          "TDD copies backwards from $0110 to $0210",
          "first=%s" % bytes(mem[0x210:0x218]).hex())
 
-    # TIA writes each source byte twice (the source advances every two
-    # writes), which is how the game duplicates tiles into VRAM.
+    # TIA alternates the destination between dst and dst+1 while the source
+    # advances.  With dst=$0002 this streams bytes into the VDC's low/high
+    # data ports as 16-bit VRAM words.  MAME h6280.cpp: write(to+alt, from++).
     mem = bytearray(1 << 21)
     mem[0x100] = 0x12
     mem[0x101] = 0x34
     mem[0x102] = 0x56
-    prog = [0xE3, 0x01, 0x00, 0x02, 0x00, 0x00, 0x04, 0x60]
+    mem[0x103] = 0x78
+    prog = [0xE3, 0x00, 0x01, 0x00, 0x02, 0x04, 0x00, 0x60]
     for i, b in enumerate(prog):
         mem[i] = b
     cpu = HuC6280(lambda a: mem[a], lambda a, v: mem.__setitem__(a, v & 0xFF))
     cpu.mpr = [0xF8, 0xF8] + [0] * 6
     cpu.pc = 0
     run_until(cpu)
-    expect = bytes([0x12, 0x12, 0x34, 0x34])
-    line(bytes(mem[0x200:0x204]) == expect,
-         "TIA duplicates each source byte across two destinations",
-         "dst=%s (expect %s)" % (bytes(mem[0x200:0x204]).hex(), expect.hex()))
+    expect = bytes([0x56, 0x78])
+    got = bytes(mem[0x200:0x202])
+    line(got == expect,
+         "TIA alternates the destination (VDC word stream)",
+         "dst=%s (expect %s)" % (got.hex(), expect.hex()))
+    ok &= got == expect
+
+    # TAI increments the destination and alternates the source (2-byte pattern)
+    mem = bytearray(1 << 21)
+    mem[0x100] = 0x12
+    mem[0x101] = 0x34
+    prog = [0xF3, 0x00, 0x01, 0x00, 0x02, 0x04, 0x00, 0x60]
+    for i, b in enumerate(prog):
+        mem[i] = b
+    cpu = HuC6280(lambda a: mem[a], lambda a, v: mem.__setitem__(a, v & 0xFF))
+    cpu.mpr = [0xF8, 0xF8] + [0] * 6
+    cpu.pc = 0
+    run_until(cpu)
+    expect = bytes([0x12, 0x34, 0x12, 0x34])
+    got = bytes(mem[0x200:0x204])
+    line(got == expect,
+         "TAI repeats a 2-byte source pattern",
+         "dst=%s (expect %s)" % (got.hex(), expect.hex()))
+    ok &= got == expect
+
+    # BSR must push the instruction end (RTS goes to the byte after the
+    # operand), not the operand itself.
+    mem = bytearray(1 << 21)
+    # BSR at 0 targets 4 (A9 42), RTS returns to 2 (the byte after the operand)
+    prog = [0x44, 0x02, 0xEA, 0xEA, 0xA9, 0x42, 0x60]
+    for i, b in enumerate(prog):
+        mem[i] = b
+    cpu = HuC6280(lambda a: mem[a], lambda a, v: mem.__setitem__(a, v & 0xFF))
+    cpu.mpr = [0xF8, 0xF8] + [0] * 6
+    cpu.pc = 0
+    run_until(cpu, n=3)
+    line(cpu.pc == 0x02 and cpu.a == 0x42,
+         "BSR returns to the instruction after the operand",
+         "pc=%04X A=%02X" % (cpu.pc, cpu.a))
+    ok &= cpu.pc == 0x02 and cpu.a == 0x42
 
     # --- 3. TAM / MPR mapping -------------------------------------------
     mem = bytearray(1 << 21)

@@ -64,6 +64,7 @@ class PCESystem(object):
         self.mem = bytearray(PHYS_SIZE)
         # ---- VDC state
         self.vdc_reg = 0
+        self.vdc_status = 0        # read at $0000: bit5 = VBlank IRQ
         self.mawr = 0
         self.marr = 0
         self.vram = bytearray(0x10000)
@@ -77,6 +78,19 @@ class PCESystem(object):
                    0xFC: 0, 0xFD: 0, 0xFE: 0, 0xFF: 0}
         # ---- CPU
         self.cpu = HuC6280(self.read, self.write, io_write=self._io_write)
+        # Zero-page addressing always hits work RAM at $1F0000-$1F00FF, even
+        # with MPR0=$FF.  Keep the BIOS work-area mirror ($F8-$FF) in sync.
+        def _zp_read(addr):
+            return self.mem[0x1F0000 + (addr & 0xFF)]
+
+        def _zp_write(addr, val):
+            addr &= 0xFF
+            self.mem[0x1F0000 + addr] = val & 0xFF
+            if 0xF8 <= addr <= 0xFF:
+                self.wa[addr] = val & 0xFF
+
+        self.cpu.zp_read = _zp_read
+        self.cpu.zp_write = _zp_write
         self.cpu.mpr[0] = 0xFF
         self.cpu.mpr[1] = 0xF8
         self.cpu.pc = 0
@@ -86,10 +100,13 @@ class PCESystem(object):
         self.cd_base = [0, 0]         # track-relative sector bases (code 1/2)
         self._bios_enabled = True     # False = run the real System Card code
         # ---- CD-ROM drive interface ($1800-$180F) --------------------
-        self.cd_state = "idle"      # idle | param | data | done
+        self.cd_state = "idle"      # idle|param|data|result|final|done|error
         self.cd_params = bytearray()
         self.cd_buf = b""
         self.cd_pos = 0
+        self.cd_ack = False         # $1802 bit7: clears status bit6
+        self.cd_result = b""
+        self.cd_result_pos = 0
         self.cd_flags = 0x00
         self.cd_cmd = 0x00
         self.cd_unlock = 0x0000     # $18C0 unlocks with $AA then $55
@@ -138,7 +155,12 @@ class PCESystem(object):
     # ----------------------------------------------------------------- VDC
     def io_read(self, addr):
         if addr == 0x0000:
-            return self.vdc_reg
+            # Reading $0000 returns the VDC status byte, not the register
+            # select.  The System Card's IRQ handler checks bit 5 (VBlank)
+            # and only advances its frame counter at $2241 when it is set.
+            status = self.vdc_status
+            self.vdc_status &= ~0x20
+            return status
         if addr == 0x0002:
             return 0                     # VRR not modelled (unused here)
         if addr == 0x0003:
@@ -149,28 +171,28 @@ class PCESystem(object):
             return 0
         if addr in (0x0C00, 0x0C01, 0x0C02):
             return 0
-        if 0x18C0 <= addr <= 0x18C7:     # CD unit unlock / results
-            if addr == 0x18C0:
-                return 0x00
-            if addr == 0x18C1:
-                return self.cd_ready
-            if addr == 0x18C2:
-                return self.cd_disc
-            if addr == 0x18C3:
-                return self.cd_track
-            return self.cd_result[addr - 0x18C0]
-        if addr == 0x1800:               # drive status
-            return {"idle": 0x00, "param": 0xD0, "data": 0x80,
-                    "done": 0x98}.get(self.cd_state, 0x00)
-        if addr == 0x1801:               # data byte
-            if self.cd_state == "data" and self.cd_pos < len(self.cd_buf):
-                byte = self.cd_buf[self.cd_pos]
-                self.cd_pos += 1
-                if self.cd_pos >= len(self.cd_buf):
-                    self.cd_state = "done"
-                return byte
-            return 0
-        if addr in (0x1802, 0x1803, 0x180A, 0x180C):
+        if 0x18C0 <= addr <= 0x18C7:     # CD unit signature / unlock
+            # $FE92 in the System Card validates the unit with the byte
+            # pattern AA 55 at $18C1/$18C2 and $18C5/$18C6, then uses the
+            # ID byte at $18C3/$18C7.  Bit 7 of the ID selects the Super CD
+            # unlock path (AA/55 written to $18C0).
+            sig = {0x18C1: 0xAA, 0x18C2: 0x55, 0x18C3: 0x00,
+                   0x18C5: 0xAA, 0x18C6: 0x55, 0x18C7: 0x80}
+            return sig.get(addr, 0x00)
+        if addr == 0x1800:               # SCSI status
+            return self._cd_status()
+        if addr == 0x1801:               # SCSI data / result byte
+            return self._cd_read_byte()
+        if addr == 0x1802:
+            return self.cd_flags
+        if addr == 0x1803:
+            return 0x10 if self.cd_state != "idle" else 0x00
+        if addr == 0x1808:               # CD bulk data port (SCSI READ)
+            # Bulk reads do not use the $1802 bit7 handshake; release any
+            # ack left over from the command phase.
+            self.cd_ack = False
+            return self._cd_read_byte(bulk=True)
+        if addr in (0x180A, 0x180C):
             return self.cd_flags
         if addr == 0x1806:
             return 0
@@ -198,19 +220,23 @@ class PCESystem(object):
             if self.cd_unlock == 0xAA55:
                 self.cd_ready = 0x01
                 self.cd_state = "param"
+                # The card's disc-type probe polls work RAM $222D for 4
+                # (CD-ROM2) or 8 (Super CD).  A successful AA/55 unlock means
+                # the Super CD RAM is present, so report 8.
+                # Work RAM is at $1F0000 + (logical & $1FFF), so logical
+                # $222D is physical $1F022D (not $1F222D).
+                self.mem[0x1F0000 + (0x222D & 0x1FFF)] = 8
             return True
         if 0x18C1 <= addr <= 0x18C7:
             return True
-        if addr == 0x1801:               # parameter byte
-            if self.cd_state in ("param", "idle"):
-                self.cd_params.append(val)
+        if addr == 0x1801:               # SCSI parameter byte
+            self._cd_write_param(val)
             return True
-        if addr == 0x1800:               # command
-            self.cd_command(val)
+        if addr == 0x1800:               # SCSI command
+            self._cd_write_command(val)
             return True
-        if addr == 0x1802:
-            if val == 0x00:
-                self.cd_flags &= 0xFF
+        if addr == 0x1802:               # SCSI control/ack
+            self._cd_write_control(val)
             return True
         if addr in (0x1803, 0x1804, 0x1805, 0x1809, 0x180B, 0x180D,
                     0x180E, 0x180F):
@@ -306,27 +332,29 @@ class PCESystem(object):
         sector = self.wa24()
         dh = self.wa[0xFF]
         dest = self.wa16(0xFB, 0xFA)
-        if unit_bytes:
+        if dh == 0xFE:
+            # $FE: ah:al is a *byte* count; sector payload is 2048 bytes.
             size = self.wa16(0xF9, 0xF8)
-            count = max(1, (size + 2351) // 2352)
+            count = max(1, (size + 2047) // 2048)
         else:
+            # $FF and $01..$06: al is a sector count.
             count = self.wa[0xF8] or 1
         if hasattr(self.disc, "read_sectors"):
             data = self.disc.read_sectors(sector, count)
         else:
             data = b"".join(self.disc.read_sector(sector + i) for i in range(count))
 
-        # dh selects the destination bank:
-        #   $01 / $FE / $FF -> local (MPR-mapped) RAM at logical address bx
-        #   $02..$06        -> MPR page (2=MPR1 .. 6=MPR5), destination = bx
-        #   $07/$08..       -> VRAM: bx is a VRAM *word* address
-        if dh in (0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E):
+        # dh selects the destination:
+        #   $FE       -> VRAM; bx is a VRAM *word* address and ah:al a byte count
+        #   $01 / $FF -> local (MPR-mapped) RAM at logical address bx, al sectors
+        #   $02..$06  -> MPR page (2=MPR1 .. 6=MPR5), destination = bx
+        if dh == 0xFE:
             base = dest * 2
             for i, byte in enumerate(data):
                 self.vram[(base + i) & 0xFFFF] = byte
             self.vram_writes.append((base, len(data)))
             return 0
-        if dh in (1, 0xFE, 0xFF):
+        if dh in (1, 0xFF):
             self._write_phys_range(self.cpu.phys(dest), data)
             return 0
         # dh = $02..$06 -> MPR page (2=MPR1 .. 6=MPR5)
@@ -337,7 +365,9 @@ class PCESystem(object):
         return 0
 
     def bios_cd_read(self):
-        return self._load_sectors(True)
+        result = self._load_sectors(True)
+        self.set_a(result)          # A=0 means success; the game retries otherwise
+        return result
 
     def bios_cd_exec(self):
         self._load_sectors(False)
@@ -349,6 +379,7 @@ class PCESystem(object):
         # ch selects the code (0/1); the track number is in al
         idx = self.wa[0xFD] & 1
         self.cd_base[idx] = self.wa[0xF8] & 3
+        self.set_a(0)
         return 0
 
     def bios_cd_seek(self):
@@ -396,7 +427,8 @@ class PCESystem(object):
 
     def bios_ad_trans(self):
         # ADPCM transfer: al sectors from ah:bl into the ADPCM buffers.
-        # We only need the call to succeed.
+        # We only need the call to succeed, but it must return A=0.
+        self.set_a(0)
         return 0
 
     def bios_ad_read(self):
@@ -562,23 +594,137 @@ class PCESystem(object):
         return 0
 
     # ------------------------------------------------- CD-ROM drive
-    def cd_command(self, cmd):
-        """Interpret a write to $1800 using the parameters collected so far."""
-        self.cd_cmd = cmd
-        if cmd == 0x81:                       # reset / init
+    # ---- SCSI command engine -------------------------------------------
+    # The CD unit is a SCSI device.  The card sends: $81 on $1801, $81 on
+    # $1800, then a 6-byte command descriptor block (CDB) through $1801.
+    # Status codes read from $1800:
+    #   $D0 parameter request, $C8 data byte ready, $D8 result byte ready,
+    #   $F8 command complete, $98 done, $88 end/error.
+    CD_STATUS = {"param": 0xD0, "data": 0xC8, "result": 0xD8,
+                 "final": 0xF8, "done": 0xD8, "error": 0x88}
+
+    def _cd_status(self):
+        code = self.CD_STATUS.get(self.cd_state, 0x00)
+        if self.cd_ack:
+            # $1802 bit7 acknowledges the byte; the drive drops REQ/MSG
+            # (bits 7 and 6) until the card releases the ack.
+            code &= ~0xC0
+        return code
+
+    def _cd_read_byte(self, bulk=False):
+        # $1808 is the bulk sector port: it only supplies the data phase and
+        # must not consume the $D8 result / $F8 final bytes (those belong to
+        # the $1801 control path).
+        if bulk and self.cd_state != "data":
+            return 0
+        if self.cd_state == "data":
+            if self.cd_pos < len(self.cd_buf):
+                byte = self.cd_buf[self.cd_pos]
+                self.cd_pos += 1
+                if self.cd_pos >= len(self.cd_buf):
+                    self.cd_state = "result"
+                    self.cd_result = b"\x00"
+                    self.cd_result_pos = 0
+                return byte
+            self.cd_state = "result"
+            self.cd_result = b"\x00"
+            self.cd_result_pos = 0
+            return 0
+        if self.cd_state == "result":
+            if self.cd_result_pos < len(self.cd_result):
+                byte = self.cd_result[self.cd_result_pos]
+                self.cd_result_pos += 1
+                if self.cd_result_pos >= len(self.cd_result):
+                    self.cd_state = "final"
+                    self.cd_result = b"\x00"
+                    self.cd_result_pos = 0
+                return byte
+            self.cd_state = "final"
+            self.cd_result = b"\x00"
+            self.cd_result_pos = 0
+            return 0
+        if self.cd_state == "final":
+            self.cd_state = "idle"
+            return 0
+        if self.cd_state == "done":
+            # One completion byte ($D8 phase), then the $F8 final status.
+            self.cd_state = "final"
+            self.cd_result = b"\x00"
+            self.cd_result_pos = 0
+            return 0
+        return 0
+
+    def _cd_write_param(self, val):
+        # The driver writes $81 to $1801 before selecting the drive.  That
+        # byte is a prefix, not CDB data, and it also means "start a new
+        # transaction" - clear any leftover final/result phase from the
+        # previous command so the next $1800 read sees an idle unit.
+        if val == 0x81:
+            self.cd_state = "idle"
+            self.cd_params.clear()
+            self.cd_cmd = 0
+            return
+        if self.cd_state == "param" and self.cd_cmd == 0x81:
+            self.cd_params.append(val)
+            if len(self.cd_params) >= 6:
+                self._scsi_exec()
+
+    def _cd_write_command(self, val):
+        self.cd_cmd = val
+        if val == 0x81:
             self.cd_state = "param"
             self.cd_params.clear()
             return
-        if cmd in (0x00, 0x01, 0x02, 0x03, 0x04, 0x08, 0x09):
-            return                             # stop / pause / scan
-        # a read command: parameters are sector(3) + count(1) + ...
+        # A direct command (reset/pause etc.): acknowledge it.
+        self.cd_state = "done"
+
+    def _cd_write_control(self, val):
+        self.cd_ack = bool(val & 0x80)
+        self.cd_flags = val & 0x7F
+
+    def _scsi_exec(self):
         p = self.cd_params
-        if len(p) >= 4:
-            sector = (p[0] << 16) | (p[1] << 8) | p[2]
-            count = p[3] or 1
-            self.cd_buf = self.disc.read_sectors(sector, count)
-            self.cd_pos = 0
-            self.cd_state = "data" if self.cd_buf else "done"
+        op = p[0]
+        self.cd_pos = 0
+        self.cd_result_pos = 0
+        if op == 0x08:                      # READ (6)
+            lba = (p[1] << 16) | (p[2] << 8) | p[3]
+            count = p[4] or 1
+            if hasattr(self.disc, "read_sectors"):
+                self.cd_buf = self.disc.read_sectors(lba, count)
+            else:
+                self.cd_buf = b"".join(self.disc.read_sector(lba + i)
+                                       for i in range(count))
+            self.cd_state = "data" if self.cd_buf else "result"
+            if not self.cd_buf:
+                self.cd_result = b"\x00"
+        elif op == 0x00:                    # TEST UNIT READY
+            self.cd_state = "done"
+        elif op == 0x03:                    # REQUEST SENSE
+            self.cd_result = bytes(4)
+            self.cd_state = "result"
+        elif op == 0xDE:                    # CD_DINFO (TOC)
+            # AL=0: min/max track; AL=1: lead-out MSF; AL=2: track start+control.
+            al = p[1]
+            track = p[2]
+            if al == 0x00:
+                # 72 tracks on this disc; track 1 is audio, track 2 is data.
+                data = bytes([0x01, 0x72, 0x00, 0x00])
+            elif al == 0x01:
+                # lead-out of the last track (52:30:28 BCD)
+                data = bytes([0x52, 0x30, 0x28, 0x00])
+            else:
+                if track == 0x02:
+                    # track 2 INDEX 01 = 00:44:65; control bit2 = data
+                    data = bytes([0x00, 0x44, 0x65, 0x04])
+                elif track == 0x01:
+                    data = bytes([0x00, 0x00, 0x00, 0x00])
+                else:
+                    data = bytes([0x00, 0x00, 0x00, 0x00])
+            self.cd_buf = data
+            self.cd_state = "data"
+        else:
+            self.cd_state = "done"
         self.cd_params.clear()
 
     def _vram_store(self, word):

@@ -155,10 +155,10 @@ def disasm_one(code, pc):
     if mode == "ind":
         return "%s ($%04X)" % (mn, a | (c << 8)), n
     if mode == "block":
-        # opcode, SS, ss, DD, dd, LL, ll
-        src = (a << 8) | c
-        dst = (b[3] << 8) | b[4]
-        ln = (b[5] << 8) | b[6]
+        # opcode, ss, SS, dd, DD, ll, LL  (little-endian, like every 6502 word)
+        src = b[1] | (b[2] << 8)
+        dst = b[3] | (b[4] << 8)
+        ln = b[5] | (b[6] << 8)
         return "%s $%04X, $%04X, $%04X" % (mn, src, dst, ln), n
     if mode == "tst_zp":
         return "%s #$%02X, $%02X" % (mn, a, c), n

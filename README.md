@@ -15,7 +15,8 @@ Telenet/Laser Soft, 1990) to the **Sega Mega CD**.
 | Bootable Mega CD ISO (security code, IP/SP, IPX, game module) | ✅ `tools/verify_all.py` (41 checks, 0 FAIL) |
 | Original soundtrack burned as CD-DA + `.cue` | ✅ `tools/mcd_make_disc.py` |
 | Title screen (real PC Engine tiles/map/palette + CD-DA music) | ✅ `game/src/game.c` |
-| HuC6280 CPU core + VDC/VCE + CD BIOS shim | ✅ `tools/test_cpu.py` (14/14 PASS) |
+| HuC6280 CPU core + VDC/VCE + CD BIOS shim | ✅ `tools/test_cpu.py` (16/16 PASS) |
+| **Real System Card v3.0 boot (unshimmed)** | ✅ from reset `$E0F3`: VDC init → CD unit detection → TOC scan → sector reads → 1237-byte signature verify → game boot block at `$2B26` (`tools/trace_boot_real.py`, `docs/bios-boot-progress.md`) |
 | **Stages 2–10** | ❌ **not delivered** |
 | Stage 1 | ⚠️ module present, but its graphics are an **unverified placeholder** with the wrong tile base (`docs/stage-1-correction.md`) |
 
@@ -26,12 +27,20 @@ and a bootable Mega CD disc.
 ## Why stages 2–10 are missing
 
 The game does **not** store ready-made background maps for the stages on the
-disc. It keeps the playfield in a ~64 KiB RAM buffer and shifts it by 8 tiles
-at a time (`docs/upload-routines.md`, routine at logical `$8790`), so the BAT
-only exists in VRAM at run time.
+disc; the BAT only exists in VRAM at run time.  Earlier notes described a
+~64 KiB playfield buffer shifted by 8 tiles at logical `$8790`; that reading
+came from decoding the HuC6280 block-transfer operands big-endian.  The
+operands are little-endian (like every 6502 word), so the real instruction is
+a **one-byte** buffer shift, not an 8-tile shift.  The stage upload sequence
+therefore still has to be traced from the game once it boots.
 
-Recovering it therefore requires **running the game**, which needs a working
-PC Engine CD-ROM² emulator. That work is documented but incomplete:
+The real System Card v3.0 now boots and reads the disc in `tools/` (see
+`docs/bios-boot-progress.md`).  The remaining blocker is the game boot block's
+own 74-byte integrity check at `$2B26`, which compares `$3020` with the card's
+signature table; until it passes the game code is not entered.
+
+Recovering the stages requires **running the game**, and that work is
+documented but incomplete:
 
 - `docs/system-card-boot.md` — the verified System Card boot chain (the
   disc's boot sector matches the card's 1237-byte reference exactly).

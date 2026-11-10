@@ -54,12 +54,16 @@ for c, mn, md, cyc in [
     (0x7D, "ADC", ABX, 4), (0x7E, "ROR", ABX, 7), (0x81, "STA", IZX, 6),
     (0x84, "STY", ZP, 3), (0x85, "STA", ZP, 3),
     (0x64, "STZ", ZP, 3), (0x86, "STX", ZP, 3),
+    (0x89, "BIT", IMM, 2),
+    (0x5A, "PHY", IMP, 3), (0x7A, "PLY", IMP, 4),
+    (0xDA, "PHX", IMP, 3), (0xFA, "PLX", IMP, 4),
     (0x88, "DEY", IMP, 2), (0x8A, "TXA", IMP, 2), (0x8C, "STY", ABS, 4),
     (0x8D, "STA", ABS, 4), (0x8E, "STX", ABS, 4), (0x90, "BCC", REL, 2),
     (0x91, "STA", IZY, 6), (0x92, "STA", IZP, 5), (0x94, "STY", ZPX, 4),
     (0x95, "STA", ZPX, 4), (0x96, "STX", ZPY, 4), (0x98, "TYA", IMP, 2),
     (0x9C, "STZ", ABS, 4),
     (0x99, "STA", ABY, 5), (0x9A, "TXS", IMP, 2), (0x9D, "STA", ABX, 5),
+    (0x9E, "STZ", ABX, 5),
     (0xA0, "LDY", IMM, 2), (0xA1, "LDA", IZX, 6), (0xA2, "LDX", IMM, 2),
     (0xA4, "LDY", ZP, 3), (0xA5, "LDA", ZP, 3), (0xA6, "LDX", ZP, 3),
     (0xA8, "TAY", IMP, 2), (0xA9, "LDA", IMM, 2), (0xAA, "TAX", IMP, 2),
@@ -96,8 +100,6 @@ for c, mn, md, cyc in [
     (0x03, "ST0", IMM, 4), (0x13, "ST1", IMM, 4), (0x23, "ST2", IMM, 4),
     (0x43, "TMA", IMM, 3), (0x53, "TAM", IMM, 3),
     (0x54, "CSL", IMP, 2), (0xD4, "CSH", IMP, 2), (0xF4, "SET", IMP, 2),
-    (0x83, "TST", IMM, 3), (0x93, "TST", IMM, 4),
-    (0xA3, "TST", IMM, 3), (0xB3, "TST", IMM, 4),
 ]:
     op(c, mn, md, cyc)
 
@@ -117,6 +119,17 @@ for base in range(8):
 # 15 = block transfer (7-byte operands), 17 = BBR/BBS (zp + relative)
 BBR_MODE = 17
 LENS[BBR_MODE] = 3
+
+# TST #imm, addr: three distinct addressing forms with 3/4-byte encodings
+TST_ZP, TST_ABS, TST_ZPX, TST_ABSX = 18, 19, 20, 21
+LENS[TST_ZP] = 3
+LENS[TST_ABS] = 4
+LENS[TST_ZPX] = 3
+LENS[TST_ABSX] = 4
+op(0x83, "TST", TST_ZP, 3)
+op(0x93, "TST", TST_ABS, 4)
+op(0xA3, "TST", TST_ZPX, 3)
+op(0xB3, "TST", TST_ABSX, 4)
 for base in range(8):
     op(0x0F + base * 0x10, "BBR%d" % base, BBR_MODE, 5)
     op(0x8F + base * 0x10, "BBS%d" % base, BBR_MODE, 5)
@@ -129,6 +142,11 @@ class HuC6280(object):
     def __init__(self, read, write, io_write=None):
         self.read = read          # fn(addr) -> byte
         self.write = write        # fn(addr, value)
+        # The PCE's zero page is always work RAM, even when MPR0=$FF maps
+        # $0000-$1FFF to the I/O page.  Zero-page addressing must therefore
+        # use a separate bus from absolute addressing (MAME: read8z/write8z).
+        self.zp_read = read
+        self.zp_write = write
         self.io_write = io_write  # fn(addr, value): ST0/ST1/ST2 VDC ports
         self.a = self.x = self.y = 0
         self.sp = 0xFD
@@ -189,14 +207,20 @@ class HuC6280(object):
 
     # ---- block transfers ------------------------------------------------
     def do_block(self, pc):
-        """Decode the 7-byte operand: opcode SS ss DD dd LL ll -> src,dst,len."""
-        ss = self.fetch()
+        """Decode the 7-byte operand: opcode SS ss DD dd LL ll -> src,dst,len.
+
+        The HuC6280 is a 6502 derivative, so all 16-bit operands are stored
+        little-endian: the first byte is the low half.  (This used to be
+        decoded big-endian here, which silently scrambled every block
+        transfer and invalidated earlier analyses of the upload routines.)
+        """
         sl = self.fetch()
-        dd = self.fetch()
+        sh = self.fetch()
         dl = self.fetch()
+        dh = self.fetch()
         ll = self.fetch()
         lh = self.fetch()
-        return (ss << 8) | sl, (dd << 8) | dl, (ll << 8) | lh
+        return (sh << 8) | sl, (dh << 8) | dl, (lh << 8) | ll
 
     # ---- execution ------------------------------------------------------
     def step(self):
@@ -212,6 +236,13 @@ class HuC6280(object):
     def exec(self, mn, md, opc, pc0):
         read = self.read
         write = self.write
+        # Zero-page addressing uses the always-RAM zero-page bus.  For the
+        # indirect modes (IZX/IZY/IZP) only the *pointer bytes* live in zero
+        # page; the final operand address is a normal absolute address.
+        zrd = self.zp_read
+        rd = zrd if (md in (ZP, ZPX, ZPY, TST_ZP, TST_ZPX) or
+                     md == BBR_MODE) else read
+        wr = self.zp_write if md in (ZP, ZPX, ZPY) else write
 
         def imm():
             return self.fetch()
@@ -257,13 +288,13 @@ class HuC6280(object):
             addr = aby()
         elif md == IZX:
             p = zp_addr()
-            lo = read(p)
-            hi = read((p + 1) & 0xFF)
+            lo = zrd(p)
+            hi = zrd((p + 1) & 0xFF)
             addr = (lo | (hi << 8)) & 0xFFFF
         elif md == IZY or md == IZP:
             p = zp_addr()
-            lo = read(p)
-            hi = read((p + 1) & 0xFF)
+            lo = zrd(p)
+            hi = zrd((p + 1) & 0xFF)
             a = (lo | (hi << 8)) & 0xFFFF
             addr = (a + self.y) & 0xFFFF if md == IZY else a
         elif md == REL or md == BBR_MODE:
@@ -273,6 +304,16 @@ class HuC6280(object):
             lo = read(p)
             hi = read((p + 1) & 0xFFFF)
             addr = (lo | (hi << 8)) & 0xFFFF
+        elif md in (TST_ZP, TST_ABS, TST_ZPX, TST_ABSX):
+            self._tst_imm = self.fetch()
+            if md == TST_ZP:
+                addr = self.fetch()
+            elif md == TST_ABS:
+                addr = self.abs_addr()
+            elif md == TST_ZPX:
+                addr = (self.fetch() + self.x) & 0xFF
+            else:
+                addr = (self.abs_addr() + self.x) & 0xFFFF
         elif md == 15:      # block transfer
             src, dst, ln = self.do_block(pc0)
             if mn == "TII":
@@ -285,22 +326,24 @@ class HuC6280(object):
                 for k in range(ln):
                     write(dst, read(src + k))
             elif mn == "TIA":
-                # TIA (Transfer and Increment / "alternate"): each source byte
-                # is written to two consecutive destinations and the source
-                # then advances - i.e. a byte-doubling copy.
+                # TIA = Transfer, Increment source, Alternate destination.
+                # The source advances every byte and the destination toggles
+                # between `dst` and `dst+1`.  With dst = $0002 this streams
+                # 8-bit data into the VDC's low/high data ports as 16-bit
+                # VRAM words - the PCE's standard tile upload.
                 for i in range(ln):
-                    write(dst + i, read(src + (i >> 1)))
+                    write(dst + (i & 1), read(src + i))
             elif mn == "TAI":
-                # TAI: the source address advances only every *four* writes,
-                # which is how the game seeds a 32-bit repeating pattern.
+                # TAI = Transfer, Alternate source, Increment destination.
+                # Repeats a 2-byte source pattern while dst advances.
                 for i in range(ln):
-                    write(dst + i, read(src + (i >> 2)))
+                    write(dst + i, read(src + (i & 1)))
             return
         else:
             raise RuntimeError("mode %d for %s" % (md, mn))
 
         if addr is not None and md not in (IMP, IMM, ACC, REL, 15):
-            val = read(addr)
+            val = rd(addr)
 
         # ---- ALU / memory ops -------------------------------------------
         if mn == "LDA":
@@ -313,22 +356,32 @@ class HuC6280(object):
             self.y = val
             self.set_nz(self.y)
         elif mn == "STA":
-            write(addr, self.a)
+            wr(addr, self.a)
         elif mn == "STZ":
-            write(addr, 0)
+            wr(addr, 0)
         elif mn == "STX":
-            write(addr, self.x)
+            wr(addr, self.x)
         elif mn == "STY":
-            write(addr, self.y)
+            wr(addr, self.y)
         elif mn == "STA":
-            write(addr, self.a)
+            wr(addr, self.a)
         elif mn == "STZ":
-            write(addr, 0)
+            wr(addr, 0)
         elif mn == "PHA":
             self.push(self.a)
         elif mn == "PLA":
             self.a = self.pop()
             self.set_nz(self.a)
+        elif mn == "PHX":
+            self.push(self.x)
+        elif mn == "PHY":
+            self.push(self.y)
+        elif mn == "PLX":
+            self.x = self.pop()
+            self.set_nz(self.x)
+        elif mn == "PLY":
+            self.y = self.pop()
+            self.set_nz(self.y)
         elif mn == "PHP":
             self.push(self.p() | 0x30)
         elif mn == "PLP":
@@ -411,7 +464,7 @@ class HuC6280(object):
             if md == ACC:
                 self.a = val
             else:
-                write(addr, val)
+                wr(addr, val)
         elif mn == "LSR":
             self.fC = 1 if val & 1 else 0
             val >>= 1
@@ -419,7 +472,7 @@ class HuC6280(object):
             if md == ACC:
                 self.a = val
             else:
-                write(addr, val)
+                wr(addr, val)
         elif mn == "ROL":
             c = self.fC
             self.fC = 1 if val & 0x80 else 0
@@ -428,7 +481,7 @@ class HuC6280(object):
             if md == ACC:
                 self.a = val
             else:
-                write(addr, val)
+                wr(addr, val)
         elif mn == "ROR":
             c = self.fC
             self.fC = 1 if val & 1 else 0
@@ -437,28 +490,33 @@ class HuC6280(object):
             if md == ACC:
                 self.a = val
             else:
-                write(addr, val)
+                wr(addr, val)
         elif mn == "INC":
             val = (self.a if md == ACC else val) + 1 & 0xFF
             self.set_nz(val)
             if md == ACC:
                 self.a = val
             else:
-                write(addr, val)
+                wr(addr, val)
         elif mn == "DEC":
             val = (self.a if md == ACC else val) - 1 & 0xFF
             self.set_nz(val)
             if md == ACC:
                 self.a = val
             else:
-                write(addr, val)
+                wr(addr, val)
         elif mn == "TSB":
-            val |= (1 << 0) & 0
-            self.set_nz(val)
-            write(addr, val)
+            # test and set bits: Z = ((A & M) == 0), then M |= A
+            self.fZ = 1 if (self.a & val) == 0 else 0
+            self.fN = 1 if val & 0x80 else 0
+            self.fV = 1 if val & 0x40 else 0
+            wr(addr, val | self.a)
         elif mn == "TRB":
-            self.set_nz(val)
-            write(addr, val)
+            # test and reset bits: Z = ((A & M) == 0), then M &= ~A
+            self.fZ = 1 if (self.a & val) == 0 else 0
+            self.fN = 1 if val & 0x80 else 0
+            self.fV = 1 if val & 0x40 else 0
+            wr(addr, val & ~self.a & 0xFF)
         elif mn == "JMP":
             self.pc = addr
         elif mn == "JSR":
@@ -486,18 +544,26 @@ class HuC6280(object):
                 "BRA": True,
             }.get(mn, False)
             if mn == "BSR":
+                # Fetch the relative operand *before* pushing, so the pushed
+                # return address is the last byte of the instruction (RTS
+                # increments it).  Pushing pc-1 before the fetch sent BSR
+                # returns one byte early - into the operand itself.
+                off = self.fetch()
                 ret = (self.pc - 1) & 0xFFFF
                 self.push((ret >> 8) & 0xFF)
                 self.push(ret & 0xFF)
-                self.branch(True)
+                if off & 0x80:
+                    self.pc = (self.pc - (256 - off)) & 0xFFFF
+                else:
+                    self.pc = (self.pc + off) & 0xFFFF
             else:
                 self.branch(cond)
         elif mn in ("RMB0", "RMB1", "RMB2", "RMB3", "RMB4", "RMB5", "RMB6", "RMB7"):
             bit = int(mn[3])
-            write(addr, val & ~(1 << bit))
+            wr(addr, val & ~(1 << bit))
         elif mn in ("SMB0", "SMB1", "SMB2", "SMB3", "SMB4", "SMB5", "SMB6", "SMB7"):
             bit = int(mn[3])
-            write(addr, val | (1 << bit))
+            wr(addr, val | (1 << bit))
         elif mn.startswith(("BBR", "BBS")) and len(mn) == 4:
             # opcode, zp, rel: read the zero page, test the bit, maybe branch.
             # `addr` holds the zp operand (already fetched by the decoder) and
@@ -505,11 +571,13 @@ class HuC6280(object):
             bit = int(mn[3])
             is_set = mn.startswith("BBS")
             zp = addr if addr is not None else self.fetch()
-            memval = read(zp)
+            memval = zrd(zp)
             taken = (memval & (1 << bit)) != 0
-            if is_set:
+            if not is_set:              # BBR branches when the bit is clear
                 taken = not taken
             self.branch(taken)
+        elif mn == "NOP":
+            pass
         elif mn == "CSH":
             pass
         elif mn == "CSL":
@@ -547,7 +615,12 @@ class HuC6280(object):
                 if val & (1 << b):
                     self.mpr[b] = self.a
         elif mn == "TST":
-            pass
+            # TST #imm, addr: N/V come from the *immediate*, Z from (M & imm).
+            imm = getattr(self, "_tst_imm", 0)
+            self.fZ = 1 if (val & imm) == 0 else 0
+            self.fN = 1 if imm & 0x80 else 0
+            self.fV = 1 if imm & 0x40 else 0
+            self._tst_imm = 0
         else:
             raise RuntimeError("unhandled %s" % mn)
 
@@ -572,6 +645,17 @@ class HuC6280(object):
         self.fC = 1 if r > 0xFF else 0
         self.a = r & 0xFF
         self.set_nz(self.a)
+
+    def interrupt(self, vector):
+        """Take a hardware interrupt (MAME h6280 do_interrupt)."""
+        self.push((self.pc >> 8) & 0xFF)
+        self.push(self.pc & 0xFF)
+        self.push((self.p() & ~0x08) & 0xFF)   # D cleared, B set, as MAME does
+        self.fI = 1
+        self.fD = 0
+        lo = self.read(vector)
+        hi = self.read((vector + 1) & 0xFFFF)
+        self.pc = lo | (hi << 8)
 
     def p(self):
         return ((self.fN << 7) | (self.fV << 6) | 0x30 | (self.fD << 3) |
