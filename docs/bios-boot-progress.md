@@ -203,5 +203,19 @@ after the combo is `MPR4=$F7` at BIOS `$FC76`, i.e. the backup-RAM/save-manager
 path, which ends at the zero RAM routine.  This is a title/save-flow
 emulation gap, not a button-mapping error.
 
+## User-supplied BRAM save
+
+`Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.sav` is a 2048-byte
+**PCE backup-RAM** file (header `HUBM`, file `VALIS_III`), not a full
+emulator save state.  The BIOS accesses the BRAM through the MPR4=$F7
+window at physical `$1EE000`; loading the file there makes the title
+CONTINUE/save-manager path stop crashing.  The game then reaches the
+act-title/opening card (reads 976–987 and the lead-in), but the CD-DA
+lead-in still loops, so no stage VRAM/CRAM is captured.
+
+A **full save state** (Mednafen/RetroArch) taken at the actual stage is
+still required for VRAM extraction; the 2 KiB BRAM file only contains
+progress data.
+
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.
