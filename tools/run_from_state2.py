@@ -4,7 +4,7 @@ from pce_system import PCESystem
 from valis_disc import ValisDisc
 from extract_state import load, find_var
 
-STATE = 'Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc2'
+STATE = sys.argv[1] if len(sys.argv) > 1 else 'Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc2'
 BRAM = 'Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.sav'
 d = load(STATE)
 vram = find_var(d, b'VRAM')
