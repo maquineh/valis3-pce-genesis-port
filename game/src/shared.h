@@ -6,6 +6,7 @@
 #define FILE_IPX_MMD 0
 #define FILE_GAME_MMD 1
 #define FILE_STAGE1_MMD 2
+#define FILE_STAGE2_MMD 3
 
 /* Sub CPU commands */
 #define CMD_LOAD_FILE 1

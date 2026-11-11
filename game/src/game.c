@@ -93,5 +93,5 @@ void main(void)
   engine_stop_cdda();
 
   /* proceed to stage 1 */
-  next_module = FILE_STAGE1_MMD;
+  next_module = FILE_STAGE2_MMD;
 }

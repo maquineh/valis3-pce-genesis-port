@@ -13,6 +13,10 @@
 [1m- [1;36mCompiling source stage1.c[0m
 [1m- [1;36mCompiling source stage1_res.s[0m
 [1m- [1;36mLinking module stage1.mmd[0m
+[1m- [1;36mBuilding module stage2.mmd[0m
+[1m- [1;36mCompiling source stage2_state.c[0m
+[1m- [1;36mCompiling source stage2_state_res.s[0m
+[1m- [1;36mLinking module stage2.mmd[0m
 [1m- [1;36mCreating security block[0m
 [1m- [1;36mCompiling source ip.s[0m
 m68k-linux-gnu-ld: warning: build/ip.bin.elf has a LOAD segment with RWX permissions

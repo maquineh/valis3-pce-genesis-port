@@ -1,0 +1,19 @@
+{
+  "screens": 4,
+  "screen_cols": 32,
+  "screen_rows": 24,
+  "tiles": 46,
+  "tiles_bytes": 1472,
+  "maps_bytes": 6144,
+  "pal_bytes": 128,
+  "pal_map": {
+    "15": 0,
+    "0": 1,
+    "14": 2,
+    "5": 3,
+    "6": 3,
+    "7": 3,
+    "8": 3
+  },
+  "source": "Mednafen state Stage 2 BAT/VRAM/CRAM"
+}

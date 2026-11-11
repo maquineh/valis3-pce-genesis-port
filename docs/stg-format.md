@@ -86,3 +86,24 @@ python3 tools/valis_toc.py              # 72-track absolute TOC
 python3 tools/run_full_disc.py          # full-disc run (track 6 / ADPCM)
 python3 tools/pce_state.py STATE.mc0    # list Mednafen state variables
 ```
+
+## Port integration (Stage 2, verified)
+
+`tools/pack_stage_state.py` turns the captured Stage 2 snapshot into the
+Mega CD resource format:
+
+```
+game/res/gfx/stage2_state_tiles.bin   46 tiles / 1472 B
+game/res/gfx/stage2_state_maps.bin    4 screens x 32x24 / 6144 B
+game/res/gfx/stage2_state_pal.bin     4 MD palettes / 128 B
+```
+
+`game/src/stage2_state.c` + `stage2_state_res.s` build `STAGE2.MMD`
+(9084 B).  `game/src/spx.c` registers `"STAGE2.MMD;1"` as module 3 and
+`game.c` jumps to it after START.  The final disc was rebuilt with
+`tools/build_megacd.ps1` -> `tools/mcd_make_disc.py`; `tools/verify_all.py`
+reports 41 PASS / 0 FAIL and the data ISO contains `STAGE2.MMD`.
+
+Remaining: only Stage 2 has a captured BAT.  Stages 1 and 3-10 have their
+raw tiles and palettes extracted, but their maps still need the BAT/object
+decoder.

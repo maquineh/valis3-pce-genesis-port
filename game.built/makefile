@@ -37,6 +37,7 @@ all: \
 	$(DISC_PATH)/ipx.mmd \
 	$(DISC_PATH)/game.mmd \
 	$(DISC_PATH)/stage1.mmd \
+	$(DISC_PATH)/stage2.mmd \
 	$(PROJECT_ID).iso
 
 clean:
@@ -65,4 +66,12 @@ $(DISC_PATH)/stage1.mmd: \
 	std_init.s \
 	stage1.c \
 	stage1_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 2: real save-state BAT/VRAM/CRAM snapshot
+$(DISC_PATH)/stage2.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage2_state.c \
+	stage2_state_res.s \
 	$(DISC_PATH)/ipx.mmd
