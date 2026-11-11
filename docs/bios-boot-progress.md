@@ -217,5 +217,11 @@ A **full save state** (Mednafen/RetroArch) taken at the actual stage is
 still required for VRAM extraction; the 2 KiB BRAM file only contains
 progress data.
 
+`syscard2.pce` (the v2.0 card the user added) was also tested.  Booting it
+from its reset vector does not reach the disc in this emulator, but running
+the startup overlay directly with `syscard2` and the BRAM save loads the
+title and accepts CONTINUE **without the save-manager crash**.  It still
+stops at the act-title/CD-DA lead-in, so no stage VRAM is captured.
+
 **Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
 ISO and the BIOS/title execution are verified; the game stages are not.
