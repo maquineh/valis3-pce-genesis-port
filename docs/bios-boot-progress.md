@@ -223,5 +223,50 @@ the startup overlay directly with `syscard2` and the BRAM save loads the
 title and accepts CONTINUE **without the save-manager crash**.  It still
 stops at the act-title/CD-DA lead-in, so no stage VRAM is captured.
 
-**Stages 2–10 are still not delivered.**  The soundtrack, bootable Mega CD
-ISO and the BIOS/title execution are verified; the game stages are not.
+**Stages 2-10 are still not delivered as playable Mega CD modules.**  The
+soundtrack, bootable Mega CD ISO and the BIOS/title execution are verified.
+
+## CD TOC / track-6 fix and the real Stage 2 snapshot
+
+The retail cue has **72 tracks** (18 MODE1 data tracks interleaved with 54
+CD-DA tracks).  Track 2 INDEX 01 is `00:47:65` = LBA 3440; track 6 INDEX 01
+is `05:27:52` = LBA 24427.  The emulator previously answered DINFO only for
+tracks 1-2, so the game's `DINFO(6)` returned `00:00:00`, the BIOS computed
+base `-150`, and the drive read lead-in audio forever.
+
+`tools/valis_toc.py` now builds the absolute 72-track TOC, `tools/valis_disc.py`
+serves any absolute LBA from the retail track files, and `pce_system.py`
+answers `0xDE` DINFO for every track.  It also models `$1803` bit 5 and
+`$180B=2` (the BIOS `ad_trans`/ADPCM transfer handshake).  With this the
+CONTINUE path reads track 6 (LBA 24427, 24+20+32 sectors), runs `ad_trans`
+and starts the CD-DA music instead of looping on the lead-in.
+
+The user's Mednafen state `.mc0` was decoded by `tools/pce_state.py`.  It
+contains the real Stage 2 machine:
+
+```
+BaseRAM  0x031029  8192 B    work RAM
+CDRAM    0x045615 65536 B    CD-ROM2 code/data RAM (loaded at $100000)
+VRAM     0x033B0C 65536 B    64 KiB VRAM (16-bit LE words)
+color_table 0x033260 1024 B  512 CRAM words (16-bit LE)
+```
+
+The state's `SysCardRAM` is all zero because Valis III is a CD-ROM^2 title
+(code lives in the 64 KiB CDRAM).  `STG2A` sits at CDRAM `0xA000`, MPRs are
+`FF F8 80 81 82 85 83 00` and the BG scroll is X=39, Y=500.  The BAT has 84
+distinct tiles using palettes 0,5,6,7,8,14,15.  `tools/extract_state_stage2.py`
+writes the live VRAM/CRAM/BAT to `build/state_stage2/`.
+
+The disc itself has ten `STG` blocks on track 2 (STG1A, STG2A/B/C,
+STG3A/B, STG4A/B/C, STG5A), each exactly 40 user sectors = 81920 bytes.
+`tools/extract_stg_assets.py` verifies the layout and extracts, for every
+block, the header, palette area, Shift-JIS text, object records and the
+**1678 raw 4bpp tiles at +0x6E40**.  The first 64 tiles map one-to-one to
+VRAM `0x100-0x13F`; later 64-tile banks follow with constant deltas.
+
+Remaining blocker: the 64x64 BAT is **not stored raw**.  It is assembled by
+the game from the `+0x800` stream and/or the `+0x1000` object records; only
+Stage 2's live BAT has been captured (from the save state).  Stages 1 and
+3-10 have their raw tiles and palette data extracted, but their maps still
+need the BAT/object decoder.  See `docs/stg-format.md` for the offsets and
+tools.

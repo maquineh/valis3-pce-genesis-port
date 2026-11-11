@@ -200,7 +200,13 @@ class PCESystem(object):
         if addr == 0x1802:
             return self.cd_flags
         if addr == 0x1803:
-            return 0x10 if self.cd_state != "idle" else 0x00
+            # $1803 bit5 is the "transfer/command complete" flag used by the
+            # System Card's ad_trans routine ($F3D0).  It waits after writing
+            # $180B=2, so the pending data phase must be consumed first (see
+            # the $180B write handler).  Bit4 is kept from the previous model.
+            done = self.cd_state in ("result", "final", "done", "idle", "error")
+            return (0x20 if done else 0x00) | \
+                   (0x10 if self.cd_state != "idle" else 0x00)
         if addr == 0x1808:               # CD bulk data port (SCSI READ)
             # Bulk reads do not use the $1802 bit7 handshake; release any
             # ack left over from the command phase.
@@ -257,7 +263,18 @@ class PCESystem(object):
         if addr == 0x1802:               # SCSI control/ack
             self._cd_write_control(val)
             return True
-        if addr in (0x1803, 0x1804, 0x1805, 0x1809, 0x180B, 0x180D,
+        if addr == 0x180B:
+            # $180B=2 starts the CD->ADPCM (ad_trans) or DMA transfer.  The
+            # drive consumes the pending data phase itself, so complete it
+            # here; the System Card then polls $1803 bit5 and reads the
+            # $D8/$F8 result through $1801.
+            if val == 0x02 and self.cd_state == "data":
+                self.cd_pos = len(self.cd_buf)
+                self.cd_state = "result"
+                self.cd_result = b"\x00"
+                self.cd_result_pos = 0
+            return True
+        if addr in (0x1803, 0x1804, 0x1805, 0x1809, 0x180D,
                     0x180E, 0x180F):
             return True
         if addr == 0x0000:               # VDC register select
@@ -733,22 +750,15 @@ class PCESystem(object):
             # AL=0: min/max track; AL=1: lead-out MSF; AL=2: track start+control.
             al = p[1]
             track = p[2]
+            toc_info = getattr(self.disc, "toc_info", None)
+            leadout = getattr(self.disc, "leadout_msf", None)
             if al == 0x00:
-                # 72 tracks on this disc; track 1 is audio, track 2 is data.
-                data = bytes([0x01, 0x72, 0x00, 0x00])
+                n = len(getattr(self.disc, "tracks", ())) or 72
+                data = bytes([0x01, ((n // 10) << 4) | (n % 10), 0x00, 0x00])
             elif al == 0x01:
-                # lead-out of the last track (52:30:28 BCD)
-                data = bytes([0x52, 0x30, 0x28, 0x00])
+                data = (leadout() if leadout else bytes([0x52, 0x30, 0x28])) + b"\x00"
             else:
-                if track == 0x02:
-                    # Correct retail cue: track 2 has a 3-second (225-sector)
-                    # pregap; INDEX 01 is at absolute 00:47:65, not the
-                    # pregap start 00:44:65.  control bit2 = data.
-                    data = bytes([0x00, 0x47, 0x65, 0x04])
-                elif track == 0x01:
-                    data = bytes([0x00, 0x00, 0x00, 0x00])
-                else:
-                    data = bytes([0x00, 0x00, 0x00, 0x00])
+                data = toc_info(track) if toc_info else b"\x00\x00\x00\x00"
             self.cd_buf = data
             self.cd_state = "data"
         else:
