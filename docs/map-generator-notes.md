@@ -60,3 +60,19 @@ is its text/font row table, not the stage map.
 
 The stage terrain (palettes 0/5/6/7/8/14) is still produced by an unlocated
 routine.  Gameplay save states remain the fastest reliable path.
+
+## Full-word writer $D1E5
+
+`$D1E5` writes 16-bit BAT words from a stream at `$D8`:
+
+```
+LDA ($D8),Y; STA $0002; INY
+LDA ($D8),Y; STA $0003; INY
+INC $D6; DEC $D4; BNE ...
+```
+
+No direct `JSR $D1E5` / `JMP $D1E5` caller was found, and the byte pairs
+`E5 D1` in the CDRAM are instruction operands (`SBC $D1`), not pointer-table
+entries.  Its caller is likely reached through a RAM vector/trampoline that
+has not been located.  The terrain loader therefore remains undecoded; the
+gameplay save-state pipeline is still the reliable route.
