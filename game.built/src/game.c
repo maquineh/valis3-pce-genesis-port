@@ -94,6 +94,9 @@ void main(void)
   /* hold LEFT at START for the Stage 2B forest room */
   if (bios_joy1_hold & PAD_LEFT)
     stage_module = FILE_STAGE2B_MMD;
+  /* hold RIGHT at START for the Stage 3A ice castle */
+  if (bios_joy1_hold & PAD_RIGHT)
+    stage_module = FILE_STAGE3A_MMD;
 
   engine_stop_cdda();
 

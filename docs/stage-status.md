@@ -10,7 +10,7 @@ packed into a Mega CD module by `tools/pack_state_window.py`.
 | STG2A | 344 | `.mc0` | `STAGE2.MMD` (9084 B) | **done** |
 | STG2B | 384 | `.mc2` | `STAGE2B.MMD` (10308 B) | **done** |
 | STG2C | 424 | `.mc3` | - | menu-only; needs gameplay state |
-| STG3A | 464 | — | — | pending state |
+| STG3A | 464 | `.mc4` | `STAGE3A.MMD` (7236 B) | **done** |
 | STG3B | 504 | — | — | pending state |
 | STG4A | 544 | — | — | pending state |
 | STG4B | 584 | — | — | pending state |
@@ -49,6 +49,6 @@ menu/debug layout (repeated LIFE panels, no terrain BAT), so it cannot be
 packed as a stage.  Re-save **during Stage 2C gameplay** (after the stage
 starts, with the character and terrain visible).
 
-The title currently selects `STAGE2.MMD` on START (hold LEFT for
-`STAGE2B.MMD`).  Once all ten states exist, the same selector can be extended
-to a real stage menu.
+The title currently selects `STAGE2.MMD` on START, `STAGE2B.MMD` with
+LEFT + START and `STAGE3A.MMD` with RIGHT + START.  Once all ten states
+exist, the same selector can be extended to a real stage menu.

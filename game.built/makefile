@@ -39,6 +39,7 @@ all: \
 	$(DISC_PATH)/stage1.mmd \
 	$(DISC_PATH)/stage2.mmd \
 	$(DISC_PATH)/stage2b.mmd \
+	$(DISC_PATH)/stage3a.mmd \
 	$(PROJECT_ID).iso
 
 clean:
@@ -83,4 +84,12 @@ $(DISC_PATH)/stage2b.mmd: \
 	std_init.s \
 	stage2b_state.c \
 	stage2b_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 3A: real .mc4 save-state ice castle
+$(DISC_PATH)/stage3a.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage3a_state.c \
+	stage3a_state_res.s \
 	$(DISC_PATH)/ipx.mmd

@@ -16,7 +16,8 @@ def main():
         g = (w >> 5) & 7
         b = (w >> 9) & 7
         cram.append((r * 255 // 7, g * 255 // 7, b * 255 // 7))
-    cols, rows, screens = 32, 24, (2 if __import__("sys").argv[1:2]==["stage2b_state"] else 4)
+    cols, rows = 32, 24
+    screens = max(1, len(maps) // (cols * rows * 2))
     img = Image.new('RGB', (cols * 8 * screens, rows * 8), (0, 0, 0))
     pix = img.load()
     for s in range(screens):

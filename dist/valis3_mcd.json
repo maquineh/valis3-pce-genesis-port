@@ -5,378 +5,378 @@
       "disc_track": 2,
       "pce_track": 1,
       "seconds": 44.9,
-      "index01": "00:05:12",
+      "index01": "00:05:16",
       "wav": "dist/valis3_mcd_audio\\track_01.wav"
     },
     {
       "disc_track": 3,
       "pce_track": 3,
       "seconds": 106.0,
-      "index01": "00:52:02",
+      "index01": "00:52:06",
       "wav": "dist/valis3_mcd_audio\\track_03.wav"
     },
     {
       "disc_track": 4,
       "pce_track": 4,
       "seconds": 19.5,
-      "index01": "02:40:01",
+      "index01": "02:40:05",
       "wav": "dist/valis3_mcd_audio\\track_04.wav"
     },
     {
       "disc_track": 5,
       "pce_track": 5,
       "seconds": 129.2,
-      "index01": "03:01:39",
+      "index01": "03:01:43",
       "wav": "dist/valis3_mcd_audio\\track_05.wav"
     },
     {
       "disc_track": 6,
       "pce_track": 7,
       "seconds": 27.0,
-      "index01": "05:12:54",
+      "index01": "05:12:58",
       "wav": "dist/valis3_mcd_audio\\track_07.wav"
     },
     {
       "disc_track": 7,
       "pce_track": 9,
       "seconds": 15.9,
-      "index01": "05:41:57",
+      "index01": "05:41:61",
       "wav": "dist/valis3_mcd_audio\\track_09.wav"
     },
     {
       "disc_track": 8,
       "pce_track": 11,
       "seconds": 31.1,
-      "index01": "05:59:49",
+      "index01": "05:59:53",
       "wav": "dist/valis3_mcd_audio\\track_11.wav"
     },
     {
       "disc_track": 9,
       "pce_track": 13,
       "seconds": 52.1,
-      "index01": "06:32:58",
+      "index01": "06:32:62",
       "wav": "dist/valis3_mcd_audio\\track_13.wav"
     },
     {
       "disc_track": 10,
       "pce_track": 15,
       "seconds": 51.3,
-      "index01": "07:26:66",
+      "index01": "07:26:70",
       "wav": "dist/valis3_mcd_audio\\track_15.wav"
     },
     {
       "disc_track": 11,
       "pce_track": 17,
       "seconds": 52.7,
-      "index01": "08:20:12",
+      "index01": "08:20:16",
       "wav": "dist/valis3_mcd_audio\\track_17.wav"
     },
     {
       "disc_track": 12,
       "pce_track": 19,
       "seconds": 59.9,
-      "index01": "09:14:62",
+      "index01": "09:14:66",
       "wav": "dist/valis3_mcd_audio\\track_19.wav"
     },
     {
       "disc_track": 13,
       "pce_track": 21,
       "seconds": 57.9,
-      "index01": "10:16:56",
+      "index01": "10:16:60",
       "wav": "dist/valis3_mcd_audio\\track_21.wav"
     },
     {
       "disc_track": 14,
       "pce_track": 23,
       "seconds": 41.8,
-      "index01": "11:16:46",
+      "index01": "11:16:50",
       "wav": "dist/valis3_mcd_audio\\track_23.wav"
     },
     {
       "disc_track": 15,
       "pce_track": 25,
       "seconds": 34.9,
-      "index01": "12:00:31",
+      "index01": "12:00:35",
       "wav": "dist/valis3_mcd_audio\\track_25.wav"
     },
     {
       "disc_track": 16,
       "pce_track": 27,
       "seconds": 52.9,
-      "index01": "12:37:26",
+      "index01": "12:37:30",
       "wav": "dist/valis3_mcd_audio\\track_27.wav"
     },
     {
       "disc_track": 17,
       "pce_track": 29,
       "seconds": 60.3,
-      "index01": "13:32:22",
+      "index01": "13:32:26",
       "wav": "dist/valis3_mcd_audio\\track_29.wav"
     },
     {
       "disc_track": 18,
       "pce_track": 31,
       "seconds": 74.8,
-      "index01": "14:34:43",
+      "index01": "14:34:47",
       "wav": "dist/valis3_mcd_audio\\track_31.wav"
     },
     {
       "disc_track": 19,
       "pce_track": 33,
       "seconds": 34.3,
-      "index01": "15:51:26",
+      "index01": "15:51:30",
       "wav": "dist/valis3_mcd_audio\\track_33.wav"
     },
     {
       "disc_track": 20,
       "pce_track": 35,
       "seconds": 39.1,
-      "index01": "16:27:47",
+      "index01": "16:27:51",
       "wav": "dist/valis3_mcd_audio\\track_35.wav"
     },
     {
       "disc_track": 21,
       "pce_track": 37,
       "seconds": 291.4,
-      "index01": "17:08:55",
+      "index01": "17:08:59",
       "wav": "dist/valis3_mcd_audio\\track_37.wav"
     },
     {
       "disc_track": 22,
       "pce_track": 38,
       "seconds": 142.0,
-      "index01": "22:02:08",
+      "index01": "22:02:12",
       "wav": "dist/valis3_mcd_audio\\track_38.wav"
     },
     {
       "disc_track": 23,
       "pce_track": 39,
       "seconds": 17.0,
-      "index01": "24:26:05",
+      "index01": "24:26:09",
       "wav": "dist/valis3_mcd_audio\\track_39.wav"
     },
     {
       "disc_track": 24,
       "pce_track": 40,
       "seconds": 120.9,
-      "index01": "24:45:08",
+      "index01": "24:45:12",
       "wav": "dist/valis3_mcd_audio\\track_40.wav"
     },
     {
       "disc_track": 25,
       "pce_track": 41,
       "seconds": 13.4,
-      "index01": "26:47:73",
+      "index01": "26:48:02",
       "wav": "dist/valis3_mcd_audio\\track_41.wav"
     },
     {
       "disc_track": 26,
       "pce_track": 42,
       "seconds": 13.5,
-      "index01": "27:03:25",
+      "index01": "27:03:29",
       "wav": "dist/valis3_mcd_audio\\track_42.wav"
     },
     {
       "disc_track": 27,
       "pce_track": 43,
       "seconds": 65.1,
-      "index01": "27:18:61",
+      "index01": "27:18:65",
       "wav": "dist/valis3_mcd_audio\\track_43.wav"
     },
     {
       "disc_track": 28,
       "pce_track": 44,
       "seconds": 124.3,
-      "index01": "28:25:70",
+      "index01": "28:25:74",
       "wav": "dist/valis3_mcd_audio\\track_44.wav"
     },
     {
       "disc_track": 29,
       "pce_track": 45,
       "seconds": 13.7,
-      "index01": "30:32:16",
+      "index01": "30:32:20",
       "wav": "dist/valis3_mcd_audio\\track_45.wav"
     },
     {
       "disc_track": 30,
       "pce_track": 46,
       "seconds": 17.1,
-      "index01": "30:47:65",
+      "index01": "30:47:69",
       "wav": "dist/valis3_mcd_audio\\track_46.wav"
     },
     {
       "disc_track": 31,
       "pce_track": 47,
       "seconds": 138.5,
-      "index01": "31:06:72",
+      "index01": "31:07:01",
       "wav": "dist/valis3_mcd_audio\\track_47.wav"
     },
     {
       "disc_track": 32,
       "pce_track": 48,
       "seconds": 17.2,
-      "index01": "33:27:34",
+      "index01": "33:27:38",
       "wav": "dist/valis3_mcd_audio\\track_48.wav"
     },
     {
       "disc_track": 33,
       "pce_track": 49,
       "seconds": 19.5,
-      "index01": "33:46:48",
+      "index01": "33:46:52",
       "wav": "dist/valis3_mcd_audio\\track_49.wav"
     },
     {
       "disc_track": 34,
       "pce_track": 50,
       "seconds": 170.4,
-      "index01": "34:08:11",
+      "index01": "34:08:15",
       "wav": "dist/valis3_mcd_audio\\track_50.wav"
     },
     {
       "disc_track": 35,
       "pce_track": 51,
       "seconds": 12.0,
-      "index01": "37:00:44",
+      "index01": "37:00:48",
       "wav": "dist/valis3_mcd_audio\\track_51.wav"
     },
     {
       "disc_track": 36,
       "pce_track": 52,
       "seconds": 133.4,
-      "index01": "37:14:43",
+      "index01": "37:14:47",
       "wav": "dist/valis3_mcd_audio\\track_52.wav"
     },
     {
       "disc_track": 37,
       "pce_track": 53,
       "seconds": 24.3,
-      "index01": "39:29:72",
+      "index01": "39:30:01",
       "wav": "dist/valis3_mcd_audio\\track_53.wav"
     },
     {
       "disc_track": 38,
       "pce_track": 54,
       "seconds": 65.4,
-      "index01": "39:56:16",
+      "index01": "39:56:20",
       "wav": "dist/valis3_mcd_audio\\track_54.wav"
     },
     {
       "disc_track": 39,
       "pce_track": 55,
       "seconds": 126.3,
-      "index01": "41:03:46",
+      "index01": "41:03:50",
       "wav": "dist/valis3_mcd_audio\\track_55.wav"
     },
     {
       "disc_track": 40,
       "pce_track": 56,
       "seconds": 19.1,
-      "index01": "43:11:70",
+      "index01": "43:11:74",
       "wav": "dist/valis3_mcd_audio\\track_56.wav"
     },
     {
       "disc_track": 41,
       "pce_track": 57,
       "seconds": 19.5,
-      "index01": "43:32:74",
+      "index01": "43:33:03",
       "wav": "dist/valis3_mcd_audio\\track_57.wav"
     },
     {
       "disc_track": 42,
       "pce_track": 58,
       "seconds": 14.9,
-      "index01": "43:54:37",
+      "index01": "43:54:41",
       "wav": "dist/valis3_mcd_audio\\track_58.wav"
     },
     {
       "disc_track": 43,
       "pce_track": 59,
       "seconds": 126.3,
-      "index01": "44:11:27",
+      "index01": "44:11:31",
       "wav": "dist/valis3_mcd_audio\\track_59.wav"
     },
     {
       "disc_track": 44,
       "pce_track": 60,
       "seconds": 18.0,
-      "index01": "46:19:51",
+      "index01": "46:19:55",
       "wav": "dist/valis3_mcd_audio\\track_60.wav"
     },
     {
       "disc_track": 45,
       "pce_track": 61,
       "seconds": 20.5,
-      "index01": "46:39:53",
+      "index01": "46:39:57",
       "wav": "dist/valis3_mcd_audio\\track_61.wav"
     },
     {
       "disc_track": 46,
       "pce_track": 62,
       "seconds": 14.8,
-      "index01": "47:02:18",
+      "index01": "47:02:22",
       "wav": "dist/valis3_mcd_audio\\track_62.wav"
     },
     {
       "disc_track": 47,
       "pce_track": 63,
       "seconds": 148.7,
-      "index01": "47:19:01",
+      "index01": "47:19:05",
       "wav": "dist/valis3_mcd_audio\\track_63.wav"
     },
     {
       "disc_track": 48,
       "pce_track": 64,
       "seconds": 20.3,
-      "index01": "49:49:54",
+      "index01": "49:49:58",
       "wav": "dist/valis3_mcd_audio\\track_64.wav"
     },
     {
       "disc_track": 49,
       "pce_track": 65,
       "seconds": 13.8,
-      "index01": "50:11:73",
+      "index01": "50:12:02",
       "wav": "dist/valis3_mcd_audio\\track_65.wav"
     },
     {
       "disc_track": 50,
       "pce_track": 66,
       "seconds": 13.6,
-      "index01": "50:27:61",
+      "index01": "50:27:65",
       "wav": "dist/valis3_mcd_audio\\track_66.wav"
     },
     {
       "disc_track": 51,
       "pce_track": 67,
       "seconds": 11.1,
-      "index01": "50:43:29",
+      "index01": "50:43:33",
       "wav": "dist/valis3_mcd_audio\\track_67.wav"
     },
     {
       "disc_track": 52,
       "pce_track": 68,
       "seconds": 10.2,
-      "index01": "50:56:40",
+      "index01": "50:56:44",
       "wav": "dist/valis3_mcd_audio\\track_68.wav"
     },
     {
       "disc_track": 53,
       "pce_track": 69,
       "seconds": 13.0,
-      "index01": "51:08:57",
+      "index01": "51:08:61",
       "wav": "dist/valis3_mcd_audio\\track_69.wav"
     },
     {
       "disc_track": 54,
       "pce_track": 70,
       "seconds": 14.8,
-      "index01": "51:23:58",
+      "index01": "51:23:62",
       "wav": "dist/valis3_mcd_audio\\track_70.wav"
     },
     {
       "disc_track": 55,
       "pce_track": 71,
       "seconds": 11.1,
-      "index01": "51:40:41",
+      "index01": "51:40:45",
       "wav": "dist/valis3_mcd_audio\\track_71.wav"
     }
   ],
