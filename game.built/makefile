@@ -38,6 +38,7 @@ all: \
 	$(DISC_PATH)/game.mmd \
 	$(DISC_PATH)/stage1.mmd \
 	$(DISC_PATH)/stage2.mmd \
+	$(DISC_PATH)/stage2b.mmd \
 	$(PROJECT_ID).iso
 
 clean:
@@ -74,4 +75,12 @@ $(DISC_PATH)/stage2.mmd: \
 	std_init.s \
 	stage2_state.c \
 	stage2_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 2B: real .mc2 save-state forest room
+$(DISC_PATH)/stage2b.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage2b_state.c \
+	stage2b_state_res.s \
 	$(DISC_PATH)/ipx.mmd

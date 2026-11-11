@@ -44,6 +44,7 @@ def main():
     for f in ("title_tiles", "title_map", "title_pal",
               "stage1_all_tiles", "stage1_all_maps", "stage1_all_pal",
               "stage2_state_tiles", "stage2_state_maps", "stage2_state_pal",
+              "stage2b_state_tiles", "stage2b_state_maps", "stage2b_state_pal",
               "player_spr"):
         p = "game/res/gfx/%s.bin" % f
         line(os.path.isfile(p), p, "%d bytes" % os.path.getsize(p) if os.path.isfile(p) else "")
@@ -70,6 +71,8 @@ def main():
     line(os.path.isfile("game/src/stage1.c"), "game/src/stage1.c (stage 1 module)")
     line(os.path.isfile("game/src/stage2_state.c"),
          "game/src/stage2_state.c (real Stage 2 snapshot module)")
+    line(os.path.isfile("game/src/stage2b_state.c"),
+         "game/src/stage2b_state.c (real Stage 2B snapshot module)")
     iso = "build/valis3.iso"
     line(os.path.isfile(iso), iso, "%d bytes" % os.path.getsize(iso)
          if os.path.isfile(iso) else "")
@@ -80,7 +83,7 @@ def main():
         line(d[0x1F0:0x200].startswith(b"JUE"), "region field", repr(d[0x1F0:0x200]))
         line(d[16 * 2048:16 * 2048 + 1] == b"\x01", "ISO9660 PVD present")
         for name in (b"IPX.MMD", b"GAME.MMD", b"STAGE1.MMD", b"STAGE2.MMD",
-                     b"SPX.SMD"):
+                     b"STAGE2B.MMD", b"SPX.SMD"):
             line(d.find(name) >= 0, "ISO contains %s" % name.decode())
 
     print("== 5. Final disc with the original soundtrack ==")

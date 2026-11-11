@@ -84,14 +84,18 @@ void main(void)
   engine_play_cdda(CDDA_TITLE);
 
   /* wait for a START press */
+  u8 stage_module = FILE_STAGE2_MMD;
   do
   {
     bios_vblank_wait_default();
     bios_read_joypad();
   } while (!(bios_joy1_hit & PAD_START));
 
+  /* hold LEFT at START for the Stage 2B forest room */
+  if (bios_joy1_hold & PAD_LEFT)
+    stage_module = FILE_STAGE2B_MMD;
+
   engine_stop_cdda();
 
-  /* proceed to stage 1 */
-  next_module = FILE_STAGE2_MMD;
+  next_module = stage_module;
 }

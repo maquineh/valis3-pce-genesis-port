@@ -1,9 +1,10 @@
 /* Valis III Mega CD - Stage 2 module (real Mednafen save-state BAT/VRAM/CRAM).
  *
- * Stage 1 is the first 10 screens of the PC Engine original:
- *   maps  : PC Engine track 2, $17FF90 + k*$600  (24 rows x 32 cells each)
- *   tiles : PC Engine track 2, $19440 (cd_read sector $2C -> VRAM $1000)
- *   packed by tools/pack_stage_state.py from the Mednafen state
+ * Source: the user's Mednafen PCE save state with Stage 2 loaded.
+ *   maps  : captured 64x64 BAT, lower half split into 32x24 plane A screens
+ *   tiles : live Stage 2 VRAM (46 distinct tiles used by the captured BAT)
+ *   pal   : live CRAM, PCE palettes 15/0/14/5 mapped to MD palettes 0..3
+ *   packed by tools/pack_stage_state.py
  *
  * The Mega Drive plane A is only 64 cells wide, so the stage is streamed the
  * way the PC Engine original does it: the plane always holds the current

@@ -1,0 +1,23 @@
+{
+  "source": "Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc2",
+  "screens": 2,
+  "rows": [
+    0,
+    8
+  ],
+  "col0": 0,
+  "tiles": 183,
+  "tiles_bytes": 5856,
+  "maps_bytes": 3072,
+  "pal_bytes": 128,
+  "pce_palettes": [
+    1,
+    0,
+    0,
+    0
+  ],
+  "pal_map": {
+    "1": 0,
+    "0": 3
+  }
+}

@@ -2,13 +2,13 @@
 import sys
 from PIL import Image
 
-OUT = 'build/gfx/stage2_state_screen.png'
+OUT = 'build/gfx/%s_screen.png' % (__import__("sys").argv[1] if len(__import__("sys").argv)>1 else "stage2_state")
 
 
 def main():
-    tiles = open('game/res/gfx/stage2_state_tiles.bin', 'rb').read()
-    maps = open('game/res/gfx/stage2_state_maps.bin', 'rb').read()
-    pals = open('game/res/gfx/stage2_state_pal.bin', 'rb').read()
+    tiles = open('game/res/gfx/%s_tiles.bin' % (__import__("sys").argv[1] if len(__import__("sys").argv)>1 else "stage2_state"), 'rb').read()
+    maps = open('game/res/gfx/%s_maps.bin' % (__import__("sys").argv[1] if len(__import__("sys").argv)>1 else "stage2_state"), 'rb').read()
+    pals = open('game/res/gfx/%s_pal.bin' % (__import__("sys").argv[1] if len(__import__("sys").argv)>1 else "stage2_state"), 'rb').read()
     cram = []
     for i in range(64):
         w = pals[2 * i] | (pals[2 * i + 1] << 8)
@@ -16,7 +16,7 @@ def main():
         g = (w >> 5) & 7
         b = (w >> 9) & 7
         cram.append((r * 255 // 7, g * 255 // 7, b * 255 // 7))
-    cols, rows, screens = 32, 24, 4
+    cols, rows, screens = 32, 24, (2 if __import__("sys").argv[1:2]==["stage2b_state"] else 4)
     img = Image.new('RGB', (cols * 8 * screens, rows * 8), (0, 0, 0))
     pix = img.load()
     for s in range(screens):
