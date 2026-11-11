@@ -21,3 +21,31 @@ Conclusion: the BAT is built by a routine not yet located (most likely the
 CD room loader / object interpreter).  The fastest reliable path remains a
 gameplay Mednafen F5 state per stage; the state pipeline is ready
 (`tools/extract_state.py` + `tools/pack_state_window.py`).
+
+## BAT row writer found (2026-11-11)
+
+CDRAM `$7190` is a BAT row writer:
+
+```
+LDA ($D8),Y      ; next tile byte from the map stream
+BEQ end_of_row   ; 0x00 terminates the row
+...
+LDA #$00; ST0 #$00; STA $0002/$0003   ; VRAM address from $D6/$D7
+LDA #$02; ST0 #$02
+PLA; CLC; ADC $3059                    ; base 0x00 or 0x40
+STA $0002; LDA #$F7; STA $0003         ; BAT word 0xF7xx (palette 15)
+INC $D6 (and #$3F)
+```
+
+`$7187` is the variant that sets base `$3059 = 0x40`; `$7190` uses base 0.
+The table at CDRAM `$7100-$7186` is **45 entries of 3-byte little-endian
+row offsets** (0x5C, 0x64, 0x6C, 0x84, ... 0x460); the differences are row
+lengths 8..64 bytes.  This is the row table for the palette-15 background
+layer.
+
+The state's zero-page `$D8/$D9` is `0x3E00`, but that work-RAM region holds
+the 8-byte sprite table (`$D8..`), not the map stream: the pointer is
+overwritten after the map is built.  The map stream is not stored as plain
+bytes in the STG block (the 0x800 region is high-entropy), so it is
+decompressed/copied into RAM before `$7190` runs.  The decompressor has not
+been located yet.
