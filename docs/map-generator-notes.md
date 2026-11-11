@@ -49,3 +49,14 @@ overwritten after the map is built.  The map stream is not stored as plain
 bytes in the STG block (the 0x800 region is high-entropy), so it is
 decompressed/copied into RAM before `$7190` runs.  The decompressor has not
 been located yet.
+
+## Correction: $7190 is the text/menu renderer
+
+The only caller found (`JSR $CCB1` at CDRAM 0x6C7B/0x6C7E) sets
+`$D8/$D9 = 0xCCCC`, which points at the ASCII string **"PUSH RUN BUTTON"**
+at CDRAM 0x6CCC.  Therefore the `$7190` row writer is the **text/menu BAT
+renderer** (palette-15 tile rows), and the 45-entry 24-bit table at `$7100`
+is its text/font row table, not the stage map.
+
+The stage terrain (palettes 0/5/6/7/8/14) is still produced by an unlocated
+routine.  Gameplay save states remain the fastest reliable path.
