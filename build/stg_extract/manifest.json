@@ -1,0 +1,78 @@
+{
+  "source": "build/extracted/data/track_02.bin",
+  "block_bytes": 81920,
+  "tile_base": 256,
+  "tile_offset": 28224,
+  "stages": [
+    {
+      "name": "STG1A",
+      "sector": 304,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    },
+    {
+      "name": "STG2A",
+      "sector": 344,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": 65
+    },
+    {
+      "name": "STG2B",
+      "sector": 384,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    },
+    {
+      "name": "STG2C",
+      "sector": 424,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    },
+    {
+      "name": "STG3A",
+      "sector": 464,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    },
+    {
+      "name": "STG3B",
+      "sector": 504,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    },
+    {
+      "name": "STG4A",
+      "sector": 544,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    },
+    {
+      "name": "STG4B",
+      "sector": 584,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    },
+    {
+      "name": "STG4C",
+      "sector": 624,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    },
+    {
+      "name": "STG5A",
+      "sector": 664,
+      "tiles": 1678,
+      "tile_bytes": 53696,
+      "vram_matched_tiles": null
+    }
+  ]
+}
