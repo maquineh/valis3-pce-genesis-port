@@ -12,7 +12,8 @@ extern void sp_fatal();
 u16 cd_track_number;
 
 char const * const filenames[] = {
-  "IPX.MMD;1", "GAME.MMD;1", "STAGE1.MMD;1", "STAGE2.MMD;1", "STAGE2B.MMD;1", "STAGE3A.MMD;1"};
+  "IPX.MMD;1", "GAME.MMD;1", "STAGE1.MMD;1", "STAGE2.MMD;1", "STAGE2B.MMD;1",
+  "STAGE3A.MMD;1", "STAGE2C.MMD;1", "STAGE2A2.MMD;1"};
 
 // It's a good idea to put SPX's main in .init to ensure it's at the very start
 // of the code, since we jump to where we expect it to be in memory

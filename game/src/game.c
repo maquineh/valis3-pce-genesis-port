@@ -22,6 +22,16 @@ extern u8 res_title_map;
 #define TITLE_W 32
 #define TITLE_H 28
 
+/* The D-pad bits of the Mega Drive joypad 1 register: bit3 = UP, bit2 = DOWN.
+ * The engine headers already provide PAD_UP/PAD_DOWN; these fallbacks only
+ * kick in if a header version does not. */
+#ifndef PAD_UP
+#define PAD_UP 0x08
+#endif
+#ifndef PAD_DOWN
+#define PAD_DOWN 0x04
+#endif
+
 /**
  * The PC Engine renders 240p as a 32x28 tile screen (256x224), which is the
  * Mega Drive's H32 cell mode. Set that explicitly (40-cell is the BIOS
@@ -97,6 +107,12 @@ void main(void)
   /* hold RIGHT at START for the Stage 3A ice castle */
   if (bios_joy1_hold & PAD_RIGHT)
     stage_module = FILE_STAGE3A_MMD;
+  /* hold UP at START for the Stage 2A seaside room */
+  if (bios_joy1_hold & PAD_UP)
+    stage_module = FILE_STAGE2A2_MMD;
+  /* hold DOWN at START for the Stage 2C blue brick dungeon */
+  if (bios_joy1_hold & PAD_DOWN)
+    stage_module = FILE_STAGE2C_MMD;
 
   engine_stop_cdda();
 

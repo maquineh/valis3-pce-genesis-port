@@ -9,6 +9,8 @@
 #define FILE_STAGE2_MMD 3
 #define FILE_STAGE2B_MMD 4
 #define FILE_STAGE3A_MMD 5
+#define FILE_STAGE2C_MMD 6
+#define FILE_STAGE2A2_MMD 7
 
 /* Sub CPU commands */
 #define CMD_LOAD_FILE 1

@@ -2,8 +2,10 @@
 # Usage: powershell -ExecutionPolicy Bypass -File tools/build_megacd.ps1 [-Log]
 $ErrorActionPreference = "Stop"
 
-$Repo = "C:\projetos\valis3-pce-genesis-port"
-$Stage = "C:\projetos\tools\megacd-stage"
+# The repository can live anywhere (it was moved from C:\projetos to H:\projetos),
+# so derive every path from this script's location.
+$Repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$Stage = Join-Path $env:TEMP "megacd-stage"
 $Image = "valis3-build"
 
 Write-Host "== staging project =="

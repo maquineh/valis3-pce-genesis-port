@@ -40,6 +40,8 @@ all: \
 	$(DISC_PATH)/stage2.mmd \
 	$(DISC_PATH)/stage2b.mmd \
 	$(DISC_PATH)/stage3a.mmd \
+	$(DISC_PATH)/stage2c.mmd \
+	$(DISC_PATH)/stage2a2.mmd \
 	$(PROJECT_ID).iso
 
 clean:
@@ -92,4 +94,20 @@ $(DISC_PATH)/stage3a.mmd: \
 	std_init.s \
 	stage3a_state.c \
 	stage3a_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 2C: real .mc2 save-state blue brick dungeon
+$(DISC_PATH)/stage2c.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage2c_state.c \
+	stage2c_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 2A room 2: real .mc1 save-state seaside cliffs
+$(DISC_PATH)/stage2a2.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage2a2_state.c \
+	stage2a2_state_res.s \
 	$(DISC_PATH)/ipx.mmd

@@ -17,50 +17,49 @@ Telenet/Laser Soft, 1990) to the **Sega Mega CD**.
 | Title screen (real PC Engine tiles/map/palette + CD-DA music) | ✅ `game/src/game.c` |
 | HuC6280 CPU core + VDC/VCE + CD BIOS shim | ✅ `tools/test_cpu.py` (16/16 PASS) |
 | **Real System Card v3.0 boot (unshimmed)** | ✅ from reset `$E0F3`: VDC init → CD unit detection → TOC scan → 1237-byte signature verify → boot block at `$2B26` → disc startup/title program (`$100000`) with title tiles in VRAM (`tools/trace_boot_real.py`, `tools/boot_capture.py`, `docs/bios-boot-progress.md`) |
-| **Stages 2–10** | ❌ **not delivered** |
-| Stage 1 | ⚠️ module present, but its graphics are an **unverified placeholder** with the wrong tile base (`docs/stage-1-correction.md`) |
+| **Stages 2, 2A room 2, 2B, 2C, 3A** | ✅ migrated from real Mednafen save states → `STAGE2/2A2/2B/2C/3A.MMD` (`docs/stage-status.md`) |
+| **Stages 1, 3B, 4A/B/C, 5A** | ❌ **not delivered** (no gameplay save state captured yet) |
+| Stage 1 module | ⚠️ present, but its graphics are an **unverified placeholder** with the wrong tile base (`docs/stage-1-correction.md`) |
 
 **The objective — a port with all ten stages — is not met.** What is
 delivered and verified is the complete original soundtrack, the title screen,
-and a bootable Mega CD disc.
+a bootable Mega CD disc and five stages captured from the real game.
 
-## Why stages 2–10 are missing
+## Why the remaining stages are missing
 
 The game does **not** store ready-made background maps for the stages on the
-disc; the BAT only exists in VRAM at run time.  Earlier notes described a
-~64 KiB playfield buffer shifted by 8 tiles at logical `$8790`; that reading
-came from decoding the HuC6280 block-transfer operands big-endian.  The
-operands are little-endian (like every 6502 word), so the real instruction is
-a **one-byte** buffer shift, not an 8-tile shift.  The stage upload sequence
-therefore still has to be traced from the game once it boots.
+disc: the BAT is **generated at run time** by a routine that has not been
+located yet (`docs/map-generator-notes.md`).  What the disc *does* contain is
+the raw 4bpp tile art and the palettes of all ten stages — they are extracted
+into `build/stg_extract/` (`docs/stg-format.md`) — but the map stream itself is
+compressed and its decompressor is still unknown.
 
-The real System Card v3.0 now boots and reads the disc in `tools/` (see
-`docs/bios-boot-progress.md`).  The remaining blocker is the game boot block's
-own 74-byte integrity check at `$2B26`, which compares `$3020` with the card's
-signature table; until it passes the game code is not entered.
+The emulator in `tools/` now boots the **real Japanese Super System Card
+v3.0** from reset, detects the CD unit, scans the 72-track TOC, reads the
+disc, plays the CD-DA soundtrack and executes the title and overlay programs
+(`docs/bios-boot-progress.md`).  It still does not reach the stage engine on
+its own: the opening waits on the CD-DA playback state, and the hidden
+stage-select path needs the save/BRAM flow emulated.
 
-Recovering the stages requires **running the game**, and that work is
-documented but incomplete:
+Because of that, the working path for the stages is **capture from a real
+emulator**: one Mednafen save state per stage, decoded by
+`tools/pce_state.py` / `tools/extract_state.py` and packed by
+`tools/pack_state_window.py` into a Mega CD module.
 
-- `docs/system-card-boot.md` — the verified System Card boot chain (the
-  disc's boot sector matches the card's 1237-byte reference exactly).
-- `docs/cd-protocol.md` — the CD drive register map (`$1800` status/command,
-  `$1801` parameter/data, `$18C0` unlock, `$18C1-$18C7` results) derived from
-  the card's own driver, plus the verified v3.0 boot path that ends in
-  `JMP $4000` with `MPR2-6 = $04..$08`.
-- `docs/stage-segments.md` — the ten stage segments (`STG1A`, `STG2A/B/C`,
-  `STG3A/B`, `STG4A/B/C`, `STG5A`) at 40-sector intervals with their own VCE
-  palettes.
-
-The emulator reaches the point of executing the disc's boot code and issuing
-a real `cd_read`, but the drive handshake is not complete, so the game never
-boots to a playable screen and no per-stage VRAM dump exists.
+- `docs/stg-format.md` — the ten `STG` blocks on track 2 (40 sectors each),
+  their internal layout, the extracted tiles/palettes and the state pipeline.
+- `docs/stage-status.md` — which stages are migrated, from which save state,
+  and the exact steps to migrate the next one.
+- `docs/map-generator-notes.md` — the static decoding attempts (and why the
+  terrain loader is still unlocated).
 
 ## Fastest way to finish
 
-Provide emulator **save states** (Mednafen or RetroArch + Beetle PCE) with
-each stage loaded. `tools/pack_stage_all.py` can then pack the real VRAM
-contents directly, without completing the CD drive emulation.
+Provide Mednafen **save states** with each remaining stage loaded — the
+missing ones are STG1A, STG3B, STG4A, STG4B, STG4C and STG5A (press F5 during
+play, with the terrain on screen).  `tools/extract_state.py` +
+`tools/pack_state_window.py` then turn each state into a Mega CD stage module
+without touching the CD drive emulation.
 
 ## Where things are
 
