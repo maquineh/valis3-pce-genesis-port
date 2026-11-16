@@ -29,9 +29,11 @@ Two capture sets exist:
 | STG4C | 624 | — | — | pending state |
 | STG5A | 664 | — | — | pending state |
 
-Six of the ten stages are now migrated from real captured state data; the
-remaining four (STG1A, STG3B, STG4B/C, STG5A) still need a gameplay save
-state.
+Six real modules are built (Stage 2 room 1, Stage 2 seaside, Stage 2B,
+Stage 2C dungeon, Stage 3A, Stage 4A).  Five STG blocks still need a
+gameplay save state: **STG1A, STG3B, STG4B, STG4C and STG5A**.  Their data
+is present in the ISO; `tools/iso_stage_inventory.py` renders their raw
+tile sheets to `build/gfx/stg_inventory/` (see `docs/iso-stage-inventory.md`).
 
 ## Adding a new stage from a save state
 
