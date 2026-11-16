@@ -113,6 +113,9 @@ void main(void)
   /* hold DOWN at START for the Stage 2C blue brick dungeon */
   if (bios_joy1_hold & PAD_DOWN)
     stage_module = FILE_STAGE2C_MMD;
+  /* hold A at START for the Stage 4A graveyard */
+  if (bios_joy1_hold & PAD_A)
+    stage_module = FILE_STAGE4A_MMD;
 
   engine_stop_cdda();
 

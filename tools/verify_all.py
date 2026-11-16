@@ -48,6 +48,7 @@ def main():
               "stage3a_state_tiles", "stage3a_state_maps", "stage3a_state_pal",
               "stage2c_state_tiles", "stage2c_state_maps", "stage2c_state_pal",
               "stage2a2_state_tiles", "stage2a2_state_maps", "stage2a2_state_pal",
+              "stage4a_state_tiles", "stage4a_state_maps", "stage4a_state_pal",
               "player_spr"):
         p = "game/res/gfx/%s.bin" % f
         line(os.path.isfile(p), p, "%d bytes" % os.path.getsize(p) if os.path.isfile(p) else "")
@@ -82,12 +83,15 @@ def main():
          "game/src/stage2c_state.c (real Stage 2C snapshot module)")
     line(os.path.isfile("game/src/stage2a2_state.c"),
          "game/src/stage2a2_state.c (real Stage 2A seaside snapshot module)")
+    line(os.path.isfile("game/src/stage4a_state.c"),
+         "game/src/stage4a_state.c (real Stage 4A graveyard snapshot module)")
     print("== 4b. Stage modules match their packed resources ==")
     for name, src in (("stage2_state", "game/src/stage2_state.c"),
                       ("stage2b_state", "game/src/stage2b_state.c"),
                       ("stage3a_state", "game/src/stage3a_state.c"),
                       ("stage2c_state", "game/src/stage2c_state.c"),
-                      ("stage2a2_state", "game/src/stage2a2_state.c")):
+                      ("stage2a2_state", "game/src/stage2a2_state.c"),
+                      ("stage4a_state", "game/src/stage4a_state.c")):
         meta = "game/res/gfx/%s.json" % name
         if not (os.path.isfile(meta) and os.path.isfile(src)):
             continue
@@ -108,7 +112,7 @@ def main():
         line(d[16 * 2048:16 * 2048 + 1] == b"\x01", "ISO9660 PVD present")
         for name in (b"IPX.MMD", b"GAME.MMD", b"STAGE1.MMD", b"STAGE2.MMD",
                      b"STAGE2B.MMD", b"STAGE3A.MMD", b"STAGE2C.MMD",
-                     b"STAGE2A2.MMD", b"SPX.SMD"):
+                     b"STAGE2A2.MMD", b"STAGE4A.MMD", b"SPX.SMD"):
             line(d.find(name) >= 0, "ISO contains %s" % name.decode())
 
     print("== 5. Final disc with the original soundtrack ==")

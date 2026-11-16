@@ -11,7 +11,8 @@ Two capture sets exist:
 * the **second set** (re-saved by the user) sits in `states/` and produced
   STAGE2C (the dungeon) and STAGE2A2 (the seaside room).  Note that the file
   names collide with the first set but the contents differ: the old `.mc2` is
-  STG2B, the new `.mc2` is STG2C.
+  STG2B, the new `.mc2` is STG2C;
+* the **third capture** (`states/…mc9`) produced STAGE4A (the graveyard).
 
 | PCE block | sector | save state | Mega CD module | status |
 |-----------|--------|------------|----------------|--------|
@@ -23,13 +24,13 @@ Two capture sets exist:
 | STG2C (green room) | 424 | `states/…mc3` | — | captured, but the visible window is the HUD layer only |
 | STG3A | 464 | root `.mc4` | `STAGE3A.MMD` (7236 B) | **done** |
 | STG3B | 504 | — | — | pending state |
-| STG4A | 544 | — | — | pending state |
+| STG4A | 544 | `states/…mc9` | `STAGE4A.MMD` (14148 B) | **done** |
 | STG4B | 584 | — | — | pending state |
 | STG4C | 624 | — | — | pending state |
 | STG5A | 664 | — | — | pending state |
 
-Five of the ten stages are now migrated from real captured state data; the
-remaining five (STG1A, STG3B, STG4A/B/C, STG5A) still need a gameplay save
+Six of the ten stages are now migrated from real captured state data; the
+remaining four (STG1A, STG3B, STG4B/C, STG5A) still need a gameplay save
 state.
 
 ## Adding a new stage from a save state
@@ -76,6 +77,7 @@ The title screen keeps the "hold a direction while pressing START" scheme:
 | `LEFT` + `START` | `STAGE2B.MMD` | STG2B forest |
 | `RIGHT` + `START` | `STAGE3A.MMD` | STG3A ice castle |
 | `DOWN` + `START` | `STAGE2C.MMD` | STG2C blue brick dungeon |
+| `A` + `START` | `STAGE4A.MMD` | STG4A graveyard |
 
 Once all ten states exist, the same selector can be extended to a real stage
 menu.

@@ -1,0 +1,27 @@
+{
+  "source": "states\\Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc2",
+  "screens": 4,
+  "rows": [
+    0,
+    8,
+    16,
+    24
+  ],
+  "col0": 0,
+  "tiles": 155,
+  "tiles_bytes": 4960,
+  "maps_bytes": 6144,
+  "pal_bytes": 128,
+  "pce_palettes": [
+    2,
+    3,
+    14,
+    0
+  ],
+  "pal_map": {
+    "2": 0,
+    "3": 1,
+    "14": 2,
+    "0": 3
+  }
+}

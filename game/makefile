@@ -42,6 +42,7 @@ all: \
 	$(DISC_PATH)/stage3a.mmd \
 	$(DISC_PATH)/stage2c.mmd \
 	$(DISC_PATH)/stage2a2.mmd \
+	$(DISC_PATH)/stage4a.mmd \
 	$(PROJECT_ID).iso
 
 clean:
@@ -110,4 +111,12 @@ $(DISC_PATH)/stage2a2.mmd: \
 	std_init.s \
 	stage2a2_state.c \
 	stage2a2_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 4A: real .mc9 save-state graveyard
+$(DISC_PATH)/stage4a.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage4a_state.c \
+	stage4a_state_res.s \
 	$(DISC_PATH)/ipx.mmd

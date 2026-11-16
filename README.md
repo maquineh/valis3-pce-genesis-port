@@ -12,18 +12,18 @@ Telenet/Laser Soft, 1990) to the **Sega Mega CD**.
 | HuC6280 disassembler + CD BIOS loader table decoded | ✅ `tools/disasm6280.py`, `tools/decode_cd_calls.py` |
 | PCE → Mega Drive tile/palette/map converter | ✅ `tools/pce2md.py` |
 | Mega CD build toolchain (megadev + m68k gcc + mkisofs) | ✅ `tools/build_megacd.ps1` |
-| Bootable Mega CD ISO (security code, IP/SP, IPX, game module) | ✅ `tools/verify_all.py` (41 checks, 0 FAIL) |
+| Bootable Mega CD ISO (security code, IP/SP, IPX, game module) | ✅ `tools/verify_all.py` (83 checks, 0 FAIL) |
 | Original soundtrack burned as CD-DA + `.cue` | ✅ `tools/mcd_make_disc.py` |
 | Title screen (real PC Engine tiles/map/palette + CD-DA music) | ✅ `game/src/game.c` |
 | HuC6280 CPU core + VDC/VCE + CD BIOS shim | ✅ `tools/test_cpu.py` (16/16 PASS) |
 | **Real System Card v3.0 boot (unshimmed)** | ✅ from reset `$E0F3`: VDC init → CD unit detection → TOC scan → 1237-byte signature verify → boot block at `$2B26` → disc startup/title program (`$100000`) with title tiles in VRAM (`tools/trace_boot_real.py`, `tools/boot_capture.py`, `docs/bios-boot-progress.md`) |
-| **Stages 2, 2A room 2, 2B, 2C, 3A** | ✅ migrated from real Mednafen save states → `STAGE2/2A2/2B/2C/3A.MMD` (`docs/stage-status.md`) |
-| **Stages 1, 3B, 4A/B/C, 5A** | ❌ **not delivered** (no gameplay save state captured yet) |
+| **Stages 2, 2A room 2, 2B, 2C, 3A, 4A** | ✅ migrated from real Mednafen save states → `STAGE2/2A2/2B/2C/3A/4A.MMD` (`docs/stage-status.md`) |
+| **Stages 1, 3B, 4B/C, 5A** | ❌ **not delivered** (no gameplay save state captured yet) |
 | Stage 1 module | ⚠️ present, but its graphics are an **unverified placeholder** with the wrong tile base (`docs/stage-1-correction.md`) |
 
 **The objective — a port with all ten stages — is not met.** What is
 delivered and verified is the complete original soundtrack, the title screen,
-a bootable Mega CD disc and five stages captured from the real game.
+a bootable Mega CD disc and six stages captured from the real game.
 
 ## Why the remaining stages are missing
 
@@ -56,7 +56,7 @@ emulator**: one Mednafen save state per stage, decoded by
 ## Fastest way to finish
 
 Provide Mednafen **save states** with each remaining stage loaded — the
-missing ones are STG1A, STG3B, STG4A, STG4B, STG4C and STG5A (press F5 during
+missing ones are STG1A, STG3B, STG4B, STG4C and STG5A (press F5 during
 play, with the terrain on screen).  `tools/extract_state.py` +
 `tools/pack_state_window.py` then turn each state into a Mega CD stage module
 without touching the CD drive emulation.
