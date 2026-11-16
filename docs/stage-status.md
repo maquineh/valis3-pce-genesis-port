@@ -4,7 +4,7 @@ The ten playable areas are the ten `STG` blocks on PCE track 2.  Each one is
 migrated from a real Mednafen save state: the captured BAT/VRAM/CRAM are
 packed into a Mega CD module by `tools/pack_state_window.py`.
 
-Two capture sets exist:
+Four capture sets exist:
 
 * the **first set** sits in the repository root (`Valis III (Japan).…mc0` …
   `.mc4`) and produced the STAGE2 / STAGE2B / STAGE3A modules;
@@ -12,11 +12,15 @@ Two capture sets exist:
   STAGE2C (the dungeon) and STAGE2A2 (the seaside room).  Note that the file
   names collide with the first set but the contents differ: the old `.mc2` is
   STG2B, the new `.mc2` is STG2C;
-* the **third capture** (`states/…mc9`) produced STAGE4A (the graveyard).
+* the **third capture** (`states/…mc9`) produced STAGE4A (the graveyard);
+* the **fourth capture** is a newer `.mc1` that loads STG1A.  It collides with
+  the STAGE2A2 source, so it is stored as `states/…stg1a.mc1`.  Its live CRAM
+  was blacked out by a screen fade, so STAGE1A uses the retail `STG1A` colour
+  table instead (see the `--pal` option below).
 
 | PCE block | sector | save state | Mega CD module | status |
 |-----------|--------|------------|----------------|--------|
-| STG1A | 304 | — | stage1 (placeholder) | pending state |
+| STG1A | 304 | `states/…stg1a.mc1` | `STAGE1A.MMD` (10468 B) | **done** |
 | STG2A (room 1) | 344 | root `.mc0` | `STAGE2.MMD` (9084 B) | **done** |
 | STG2A (room 2, seaside) | 344 | `states/…mc1` | `STAGE2A2.MMD` | **done** |
 | STG2B | 384 | root `.mc2` | `STAGE2B.MMD` (10308 B) | **done** |
@@ -29,10 +33,10 @@ Two capture sets exist:
 | STG4C | 624 | — | — | pending state |
 | STG5A | 664 | — | — | pending state |
 
-Six real modules are built (Stage 2 room 1, Stage 2 seaside, Stage 2B,
-Stage 2C dungeon, Stage 3A, Stage 4A).  Five STG blocks still need a
-gameplay save state: **STG1A, STG3B, STG4B, STG4C and STG5A**.  Their data
-is present in the ISO; `tools/iso_stage_inventory.py` renders their raw
+Seven real modules are built (Stage 1A shrine, Stage 2 room 1, Stage 2
+seaside, Stage 2B, Stage 2C dungeon, Stage 3A, Stage 4A).  Four STG blocks
+still need a gameplay save state: **STG3B, STG4B, STG4C and STG5A**.  Their
+data is present in the ISO; `tools/iso_stage_inventory.py` renders their raw
 tile sheets to `build/gfx/stg_inventory/` (see `docs/iso-stage-inventory.md`).
 
 ## Adding a new stage from a save state
@@ -57,6 +61,16 @@ python3 tools/pack_state_window.py "STATE.mcX" stageN_state ROW0 ROW1
    the stage is the lower half, so `32 40` was used.  For the second capture
    set the stage sits at the top of the BAT, so `0 8 16 24` gives four
    consecutive screens.
+
+   If the capture was saved during a black fade, its live CRAM may be empty.
+   Pass the retail block's colour table instead:
+
+```
+python3 tools/pack_state_window.py "STATE.mcX" stageN_state \
+    --pal build/stg_extract/STG1A_pal.bin:0x64 0 8
+```
+
+   The `0x64` offset is the start of the CRAM words inside each `<STG>_pal.bin`.
 4. Add `game/src/stageN_state.c` + `stageN_state_res.s` (copy the Stage 3A
    files and change the resource prefix, `STAGE_SCREENS`, `STAGE_TILES` and
    `PLAYER_TILE` to the packer's JSON values).
@@ -80,6 +94,7 @@ The title screen keeps the "hold a direction while pressing START" scheme:
 | `RIGHT` + `START` | `STAGE3A.MMD` | STG3A ice castle |
 | `DOWN` + `START` | `STAGE2C.MMD` | STG2C blue brick dungeon |
 | `A` + `START` | `STAGE4A.MMD` | STG4A graveyard |
+| `B` + `START` | `STAGE1A.MMD` | STG1A shrine |
 
 Once all ten states exist, the same selector can be extended to a real stage
 menu.

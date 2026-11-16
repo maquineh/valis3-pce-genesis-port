@@ -1,10 +1,11 @@
 /* Valis III Mega CD - Stage 4A module (graveyard, real Mednafen .mc9 BAT/VRAM/CRAM).
  *
- * Source: the user's Mednafen PCE save state with Stage 2 loaded.
+ * Source: the user's Mednafen PCE save state with Stage 4A loaded
+ *   (states/Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc9).
  *   maps  : captured 64x64 BAT, upper-left graveyard split into 32x24 plane A screens
  *   tiles : live Stage 4A VRAM (303 distinct tiles used by the captured BAT)
- *   pal   : live CRAM, PCE palettes 15/0/14/5 mapped to MD palettes 0..3
- *   packed by tools/pack_stage_state.py
+ *   pal   : live CRAM, PCE palettes 1/4/2/3 mapped to MD palettes 0..3
+ *   packed by tools/pack_state_window.py (rows 0,8)
  *
  * The Mega Drive plane A is only 64 cells wide, so the stage is streamed the
  * way the PC Engine original does it: the plane always holds the current

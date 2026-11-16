@@ -43,6 +43,7 @@ all: \
 	$(DISC_PATH)/stage2c.mmd \
 	$(DISC_PATH)/stage2a2.mmd \
 	$(DISC_PATH)/stage4a.mmd \
+	$(DISC_PATH)/stage1a.mmd \
 	$(PROJECT_ID).iso
 
 clean:
@@ -119,4 +120,12 @@ $(DISC_PATH)/stage4a.mmd: \
 	std_init.s \
 	stage4a_state.c \
 	stage4a_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 1A: real .mc1 save-state shrine (retail STG1A palette)
+$(DISC_PATH)/stage1a.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage1a_state.c \
+	stage1a_state_res.s \
 	$(DISC_PATH)/ipx.mmd

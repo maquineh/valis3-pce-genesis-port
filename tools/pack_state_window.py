@@ -1,9 +1,11 @@
 """Pack a Mednafen state's BAT window into Mega CD resources.
 
 Usage:
-  python3 tools/pack_state_window.py STATE OUTNAME ROW0 COL0 [ROW1 [ROW2 ...]]
+  python3 tools/pack_state_window.py STATE OUTNAME [--pal FILE[:OFFSET]] ROW0 [ROW1 ...]
 
 Each ROWn is the top row of a 32x24 screen taken from the captured 64x64 BAT.
+--pal substitutes a palette file (e.g. the retail STG block's colour table)
+for the state's live CRAM, for captures saved during a black fade.
 """
 import json
 import os
@@ -18,15 +20,30 @@ SCREEN_COLS, SCREEN_ROWS = 32, 24
 
 
 def main():
-    state, name = sys.argv[1], sys.argv[2]
-    rows = [int(x, 0) for x in sys.argv[3:]] or [0]
+    argv = sys.argv[1:]
+    pal_file = None
+    pal_off = 0
+    if '--pal' in argv:
+        i = argv.index('--pal')
+        spec = argv[i + 1]
+        del argv[i:i + 2]
+        pal_file, _, off = spec.rpartition(':')
+        try:
+            pal_off = int(off, 0)
+        except ValueError:
+            pal_file, pal_off = spec, 0
+    state, name = argv[0], argv[1]
+    rows = [int(x, 0) for x in argv[2:]] or [0]
     col0 = 0
     if rows and rows[0] >= 1000:      # optional COL0 encoded as 1000+col
         col0 = rows[0] - 1000
         rows = rows[1:]
     d = load(state)
     vram = find_var(d, b'VRAM')
-    cram = find_var(d, b'color_table')
+    if pal_file:
+        cram = open(pal_file, 'rb').read()[pal_off:pal_off + 512]
+    else:
+        cram = find_var(d, b'color_table')
     words = [vram[2 * i] | (vram[2 * i + 1] << 8) for i in range(0x1000)]
     cw = [cram[2 * i] | (cram[2 * i + 1] << 8) for i in range(len(cram) // 2)]
 
@@ -83,6 +100,8 @@ def main():
             'col0': col0, 'tiles': len(order), 'tiles_bytes': len(tiles),
             'maps_bytes': len(maps), 'pal_bytes': len(pal),
             'pce_palettes': top, 'pal_map': pal_map}
+    if pal_file:
+        info['palette_source'] = '%s+0x%X' % (pal_file, pal_off)
     json.dump(info, open('game/res/gfx/%s.json' % name, 'w'), indent=2)
     print(json.dumps(info, indent=2))
 

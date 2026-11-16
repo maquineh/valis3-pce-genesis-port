@@ -116,6 +116,9 @@ void main(void)
   /* hold A at START for the Stage 4A graveyard */
   if (bios_joy1_hold & PAD_A)
     stage_module = FILE_STAGE4A_MMD;
+  /* hold B at START for the Stage 1A shrine */
+  if (bios_joy1_hold & PAD_B)
+    stage_module = FILE_STAGE1A_MMD;
 
   engine_stop_cdda();
 

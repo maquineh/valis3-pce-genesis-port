@@ -1,0 +1,25 @@
+{
+  "source": "states\\Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.stg1a.mc1",
+  "screens": 2,
+  "rows": [
+    0,
+    8
+  ],
+  "col0": 0,
+  "tiles": 188,
+  "tiles_bytes": 6016,
+  "maps_bytes": 3072,
+  "pal_bytes": 128,
+  "pce_palettes": [
+    0,
+    1,
+    3,
+    3
+  ],
+  "pal_map": {
+    "0": 0,
+    "1": 1,
+    "3": 3
+  },
+  "palette_source": "build/stg_extract/STG1A_pal.bin+0x64"
+}
