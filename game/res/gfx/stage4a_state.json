@@ -1,9 +1,13 @@
 {
-  "source": "C:\\projetos\\mednafen-1.32.1-win64\\mcs\\Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc9",
+  "source": ".\\states\\Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc9",
   "screens": 2,
   "rows": [
     0,
     8
+  ],
+  "columns": [
+    0,
+    0
   ],
   "col0": 0,
   "tiles": 303,
@@ -18,8 +22,16 @@
   ],
   "pal_map": {
     "1": 0,
-    "4": 1,
-    "2": 2,
-    "3": 3
-  }
+    "3": 1,
+    "4": 0,
+    "2": 2
+  },
+  "fallback_pce_palette": null,
+  "palette_mode": "exact-color-pack",
+  "line3_used_indices": [],
+  "reserved_line3": [
+    8,
+    9,
+    15
+  ]
 }

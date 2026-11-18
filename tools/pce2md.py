@@ -4,7 +4,7 @@
 PCE BG tile (8x8, 4bpp, 32 B):
     p0=byte[2r], p1=byte[2r+1], p2=byte[16+2r], p3=byte[16+2r+1]
 Mega Drive tile (8x8, 4bpp, 32 B):
-    row r: byte[4r]=p0, byte[4r+1]=p1, byte[4r+2]=p2, byte[4r+3]=p3
+    row r: four bytes, each packing two 4-bit pixel indices (left pixel high)
 
 PCE VCE colour word: B | (R<<3) | (G<<6)          (B,R,G are 3-bit)
 Mega Drive CRAM word: (R<<1) | (G<<5) | (B<<9)    (same bit order per channel)
@@ -13,16 +13,19 @@ PCE BAT entry: (palette<<12) | tile_index
 Mega Drive plane A entry: tile | (hflip<<11) | (vflip<<12) | (pal<<13) | (pri<<15)
 Tile indices are rebased when uploading (uploaded tile #k gets MD index k).
 """
+from pathlib import Path
 import sys
 
 
 def pce_tile_to_md(t32):
-    out = bytearray(32)
+    if len(t32) != 32:
+        raise ValueError("PCE tile must contain exactly 32 bytes")
+    out = bytearray()
     for r in range(8):
-        out[r * 4 + 0] = t32[r * 2]
-        out[r * 4 + 1] = t32[r * 2 + 1]
-        out[r * 4 + 2] = t32[16 + r * 2]
-        out[r * 4 + 3] = t32[16 + r * 2 + 1]
+        planes = (t32[2*r], t32[2*r+1], t32[16+2*r], t32[17+2*r])
+        pixels = [sum(((plane >> (7-x)) & 1) << n
+                      for n, plane in enumerate(planes)) for x in range(8)]
+        out.extend((pixels[x] << 4) | pixels[x+1] for x in range(0, 8, 2))
     return bytes(out)
 
 
@@ -34,26 +37,26 @@ def pce_color_to_md(w):
 
 
 def cmd_tiles(src, off, count, out, tile_base=0, pal_off=None, pal_count=16):
-    data = open(src, "rb").read()
+    data = Path(src).read_bytes()
     res = bytearray()
     for i in range(count):
         base = off + i * 32
         if base + 32 > len(data):
             break
         res += pce_tile_to_md(data[base:base + 32])
-    open(out, "wb").write(res)
-    print("%s: %d tiles (%d bytes) [PCE %s +$%X -> MD green order]"
+    Path(out).write_bytes(res)
+    print("%s: %d tiles (%d bytes) [PCE %s +$%X -> MD packed pixels]"
           % (out, count, len(res), src, off))
 
 
 def cmd_pal(src, off, count, out):
-    data = open(src, "rb").read()
+    data = Path(src).read_bytes()
     res = bytearray()
     for i in range(count):
         w = data[off + i * 2] | (data[off + i * 2 + 1] << 8)
         m = pce_color_to_md(w)
-        res += bytes([m & 0xFF, (m >> 8) & 0xFF])
-    open(out, "wb").write(res)
+        res += m.to_bytes(2, "big")
+    Path(out).write_bytes(res)
     print("%s: %d colours" % (out, count))
 
 
@@ -63,7 +66,7 @@ def cmd_bat(src, off, w, h, out, tile_base=256, tile_offset=0, pal_shift=True):
     tile_base  = PCE tile index of the first uploaded tile (VRAM tile base)
     tile_offset= MD tile index of that same tile after upload
     """
-    data = open(src, "rb").read()
+    data = Path(src).read_bytes()
     res = bytearray()
     for i in range(w * h):
         lo, hi = data[off + i * 2], data[off + i * 2 + 1]
@@ -72,8 +75,8 @@ def cmd_bat(src, off, w, h, out, tile_base=256, tile_offset=0, pal_shift=True):
         tile = (word & 0xFFF) - tile_base + tile_offset
         mdpal = pal & 3  # Mega Drive has 4 palette lines
         entry = (tile & 0x7FF) | (mdpal << 13)
-        res += bytes([entry & 0xFF, (entry >> 8) & 0xFF])
-    open(out, "wb").write(res)
+        res += entry.to_bytes(2, "big")
+    Path(out).write_bytes(res)
     print("%s: %dx%d plane entries (%d bytes)" % (out, w, h, len(res)))
 
 
@@ -83,12 +86,12 @@ def cmd_ramp(out, ramp_type="gray"):
     for line in range(4):
         for i in range(16):
             if ramp_type == "gray":
-                v = int(round(i * 14 / 15))
+                v = int(round(i * 7 / 15))
                 m = (v << 1) | (v << 5) | (v << 9)
             else:
-                m = (i << 1)
-            res += bytes([m & 0xFF, (m >> 8) & 0xFF])
-    open(out, "wb").write(res)
+                m = (min(i, 7) << 1)
+            res += m.to_bytes(2, "big")
+    Path(out).write_bytes(res)
     print("%s: 64-colour ramp written" % out)
 
 

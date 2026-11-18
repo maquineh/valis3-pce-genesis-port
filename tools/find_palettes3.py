@@ -1,10 +1,10 @@
-"""Locate VCE palette blocks on the disc.
+"""Find candidate VCE palette blocks on the disc.
 
 A VCE colour word is 9 bits, so a palette block is a long run of 16-bit words
-whose high byte is 0 or 1 and which uses many distinct values.  The palette
-upload routine found at logical $8CD9 (file $2353D9) transfers exactly this
-kind of block into the VCE colour port, so these offsets are the real
-palettes - including the ones the stages need.
+whose high byte is 0 or 1 and which uses many distinct values. This is only a
+byte-pattern heuristic; no runtime palette-upload routine has been matched to
+these offsets yet. Compare candidates with captured CRAM or the verified
+palette regions in the STG blocks before using them.
 """
 import sys
 

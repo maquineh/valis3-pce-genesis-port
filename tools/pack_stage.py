@@ -58,14 +58,14 @@ def main():
         pal = w >> 12
         t = w & 0xFFF
         entry = (remap.get(t, 0) & 0x7FF) | ((pal & 3) << 13)
-        out_map += bytes([entry & 0xFF, (entry >> 8) & 0xFF])
+        out_map += entry.to_bytes(2, "big")
     open("game/res/gfx/%s_map.bin" % name, "wb").write(bytes(out_map))
 
     out_pal = bytearray()
     for i in range(64):
         w = b[pal_off + i * 2] | (b[pal_off + i * 2 + 1] << 8)
         m = pce_color_to_md(w)
-        out_pal += bytes([m & 0xFF, (m >> 8) & 0xFF])
+        out_pal += m.to_bytes(2, "big")
     open("game/res/gfx/%s_pal.bin" % name, "wb").write(bytes(out_pal))
 
     print("%s: %d tiles packed (%d bytes), map %d bytes, palette %d bytes"

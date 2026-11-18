@@ -1,0 +1,23 @@
+{
+  "width": 256,
+  "height": 224,
+  "source_width": 256,
+  "source_height": 243,
+  "tile_count": 353,
+  "palette_count": 4,
+  "palette_entries": 16,
+  "palette_used": [
+    16,
+    10,
+    1,
+    1
+  ],
+  "source_sha256": {
+    "menu": "ab96ff4f57a8fe58a28888474ee1e0c2d1a347d404e7f69cd0f2733f77235b7f",
+    "logo": "b7764ecb5b62f80015b82e2984e718aa15dd424bf0300435a490c36133070e10"
+  },
+  "quantization": "(channel*7+127)//255; expand (level*255+3)//7",
+  "mean_absolute_channel_error": 0.164266,
+  "max_absolute_channel_error": 4,
+  "changed_pixels": 8348
+}

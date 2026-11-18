@@ -5,8 +5,9 @@ Layers on top of tools/pce_cpu.py:
   * 2 MiB physical memory (I/O page hardwired at $1FE000-$1FFFFF,
     8 KiB work RAM at $1F0000-$1F1FFF, ROM/loaded pages elsewhere)
   * HuC6270 VDC: register select ($0000), low/high byte ports ($0002/$0003),
-    MAWR auto-increment into 64 KiB VRAM - every VRAM write is recorded so the
-    real stage graphics can be dumped.
+    MAWR word addressing (byte offset = 2 * MAWR) and auto-increment into 64
+    KiB VRAM - every VRAM write is recorded so the real stage graphics can be
+    dumped.
   * HuC6260 VCE: colour index ($0402) / colour data ($0404) -> 512-entry CRAM.
   * A CD-ROM^2 System Card BIOS shim answering the calls the game makes.
 
@@ -68,7 +69,7 @@ class PCESystem(object):
         self.mawr = 0
         self.marr = 0
         self.vram = bytearray(0x10000)
-        self.vram_writes = []         # (addr, value) log
+        self.vram_writes = []         # (byte_addr, word_or_transfer_length)
         self.cram = [0] * 512
         self.cram_idx = 0
         self.vdc_latch = 0
@@ -107,10 +108,10 @@ class PCESystem(object):
         self.cd_ack = False         # $1802 bit7: clears status bit6
         self.cd_result = b""
         self.cd_result_pos = 0
-        # PCE joypad is read as two active-low nibbles selected by $1000 bit0.
+        # PCE SEL=0 reads I/II/Select/Run; SEL=1 reads Up/Right/Down/Left.
         self.joy_select = 0
-        self.joy_low = 0x0F         # Up/Right/Down/Left
-        self.joy_high = 0x0F        # II/I/Select/Run (Run = bit3)
+        self.joy_low = 0x0F         # I/II/Select/Run (active low)
+        self.joy_high = 0x0F        # Up/Right/Down/Left (active low)
         self.cdda_reads = 0         # remaining cd_stat polls while CD-DA plays
         self.cd_flags = 0x00
         self.cd_cmd = 0x00
@@ -766,9 +767,12 @@ class PCESystem(object):
         self.cd_params.clear()
 
     def _vram_store(self, word):
-        a = self.mawr & 0xFFFF
+        # MAWR is a VRAM *word* address.  The saved VRAM buffer and the rest
+        # of this module use byte offsets, so convert once here and wrap both
+        # bytes at the 64 KiB VRAM boundary.
+        a = ((self.mawr & 0x7FFF) << 1) & 0xFFFF
         self.vram[a] = word & 0xFF
-        self.vram[a + 1] = (word >> 8) & 0xFF
+        self.vram[(a + 1) & 0xFFFF] = (word >> 8) & 0xFF
         self.vram_writes.append((a, word))
         self.mawr = (self.mawr + self.auto_inc()) & 0xFFFF
 

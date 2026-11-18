@@ -1,23 +1,12 @@
 {
-  "source": "Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc2",
-  "screens": 2,
-  "rows": [
-    0,
-    8
-  ],
-  "col0": 0,
-  "tiles": 183,
-  "tiles_bytes": 5856,
-  "maps_bytes": 3072,
+  "screens": 1,
+  "screen_rows": 28,
+  "screen_cols": 32,
+  "tiles": 216,
+  "tiles_bytes": 6912,
+  "maps_bytes": 1792,
   "pal_bytes": 128,
-  "pce_palettes": [
-    1,
-    0,
-    0,
-    0
-  ],
-  "pal_map": {
-    "1": 0,
-    "0": 3
-  }
+  "source": "Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc2",
+  "actor_bytes": 10752,
+  "enemy_pce_palette": 2
 }

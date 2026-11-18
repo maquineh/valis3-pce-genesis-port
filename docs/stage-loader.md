@@ -49,16 +49,17 @@ $23E3D5  JSR $E030        ad_reset
 $23E3D8  TMA #$20 ; PHA
 $23E3DB  LDA $FFF5 ; CLC ; ADC #$06 ; TAM #$20    MPR5 = $FFF5+6
 $23E3E3  CLA ; LDX #$08 ; JSR $E0AE              ex_setwrt -> MAWR $0800
-$23E3E9  TIA $00A0, $0200, $0010                tile upload
+$23E3E9  TIA $A000, $0002, $1000                4 KiB to VDC data port
 $23E3F0  PLA ; TAM #$20
 $23E3F3  JSR $8790
 $23E3F6  JSR $959B
 ...
 ```
 
-`tools/verify_chunk.py` re-derives this.  So the stage data is *streamed*:
-the master loader reads a 4-sector chunk to `$8000`, the chunk's code uploads
-tiles/palette through the VDC ports, and the next chunk is read.
+`tools/verify_chunk.py` re-derives the entry mapping from the raw track. So
+the stage data is *streamed*:
+the master loader reads a 4-sector chunk to `$8000`, the chunk code initializes
+the stage and uploads graphics data, and the next chunk is read.
 
 ### The multi-read setup routine `$847C` (verified, file `$23E80C`)
 
@@ -89,14 +90,14 @@ $23E85C  LDA #$00 ; STA $FC/$FD
          JSR $E009                   cd_read
 ```
 
-So the stage data is streamed in three passes: an ADPCM transfer, a 24-sector
-read from sector 32, and an 8-sector read from sector 56.  `cd_read` with
-`dh=$FF` uses `al` as the **sector count** and `bx` as a local-RAM address,
-while `dh=$FE` (used by the tile blocks decoded in
-`tools/list_vram_reads.py`) uses `ah:al` as a **byte count** into VRAM.
+So the stage loader selects CD base track 24, performs an ADPCM transfer, reads
+24 sectors from relative sector 32, and reads 8 sectors from relative sector
+56. `cd_read` with `dh=$FF` uses `al` as the sector count and `bx` as a
+local-RAM address.
 
-The chunk code uploads tiles with `TIA ..., $0200, ...` and palettes through
-the resident overlay's `$8CD9` routine, but the *map* (BAT) upload happens
-inside routines at `$847C`/`$8790`/`$8839`/`$88E2` whose full bodies have not
-been traced yet.  Until those are traced, the only verified stage screen
-remains the one in `game/res/gfx/stage1_all_*`.
+The call at logical `$87E9` invokes the LZ-style graphics decoder at `$9366`,
+then uploads an 8 KiB output window from `$A000` to VRAM. The decoder's code is
+at raw file `$23F956` after removing each sector's 16-byte header; see
+[`upload-routines.md`](upload-routines.md). It decodes tile bytes, not BAT
+words. The routine that generates the gameplay BAT is still unlocated, so the
+captured BAT/VRAM/CRAM pipeline remains the reliable source for scene modules.

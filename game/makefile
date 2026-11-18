@@ -35,16 +35,38 @@ include $(MEGADEV_PATH)/megadev.make
 
 all: \
 	$(DISC_PATH)/ipx.mmd \
+	$(DISC_PATH)/spx.smd \
 	$(DISC_PATH)/game.mmd \
 	$(DISC_PATH)/stage1.mmd \
 	$(DISC_PATH)/stage2.mmd \
 	$(DISC_PATH)/stage2b.mmd \
 	$(DISC_PATH)/stage3a.mmd \
 	$(DISC_PATH)/stage2c.mmd \
-	$(DISC_PATH)/stage2a2.mmd \
-	$(DISC_PATH)/stage4a.mmd \
+	$(DISC_PATH)/stage2cg.mmd \
+	$(DISC_PATH)/stage2cb.mmd \
 	$(DISC_PATH)/stage1a.mmd \
+	$(DISC_PATH)/stage4ax.mmd \
+	$(DISC_PATH)/stage4a.mmd \
+	$(DISC_PATH)/stage2a2.mmd \
 	$(PROJECT_ID).iso
+
+## ISO generation must wait for every module, including on parallel builds.
+$(PROJECT_ID).iso: \
+	$(BUILD_PATH)/boot.bin \
+	$(DISC_PATH)/ipx.mmd \
+	$(DISC_PATH)/spx.smd \
+	$(DISC_PATH)/game.mmd \
+	$(DISC_PATH)/stage1.mmd \
+	$(DISC_PATH)/stage2.mmd \
+	$(DISC_PATH)/stage2b.mmd \
+	$(DISC_PATH)/stage3a.mmd \
+	$(DISC_PATH)/stage2c.mmd \
+	$(DISC_PATH)/stage2cg.mmd \
+	$(DISC_PATH)/stage2cb.mmd \
+	$(DISC_PATH)/stage1a.mmd \
+	$(DISC_PATH)/stage4ax.mmd \
+	$(DISC_PATH)/stage4a.mmd \
+	$(DISC_PATH)/stage2a2.mmd
 
 clean:
 	@rm -f $(PROJECT_ID).iso $(DISC_PATH)/*.mmd $(DISC_PATH)/*.smd $(BUILD_PATH)/* > /dev/null 2>&1
@@ -58,6 +80,14 @@ $(DISC_PATH)/ipx.mmd: \
 	main/ipx_init.s \
 	ipx.c
 
+## The sub-CPU kernel loaded by sp.s during boot.
+$(DISC_PATH)/spx.smd: \
+	spx_layout.s \
+	std_init.s \
+	cham_voice_res.s \
+	spx.c \
+	$(BUILD_PATH)/sp.bin
+
 ## The game module: the title screen / stage logic
 $(DISC_PATH)/game.mmd: \
 	shared_mmd_layout.s \
@@ -66,12 +96,12 @@ $(DISC_PATH)/game.mmd: \
 	game_res.s \
 	$(DISC_PATH)/ipx.mmd
 
-## Stage 1: the decoded PC Engine stage screen + scrolling test
+## First playable stage: the Genesis city, from the street to the rooftops
 $(DISC_PATH)/stage1.mmd: \
 	shared_mmd_layout.s \
 	std_init.s \
-	stage1.c \
-	stage1_res.s \
+	city.c \
+	city_res.s \
 	$(DISC_PATH)/ipx.mmd
 
 ## Stage 2: real save-state BAT/VRAM/CRAM snapshot
@@ -106,6 +136,22 @@ $(DISC_PATH)/stage2c.mmd: \
 	stage2c_state_res.s \
 	$(DISC_PATH)/ipx.mmd
 
+## Stage 2C green room: one wrapped 32x24 window from the .mc3 capture
+$(DISC_PATH)/stage2cg.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage2c_green_state.c \
+	stage2c_green_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+## Stage 2C castle corridor: one window from the root .mc3 capture
+$(DISC_PATH)/stage2cb.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage2c_b_state.c \
+	stage2c_b_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
 ## Stage 2A room 2: real .mc1 save-state seaside cliffs
 $(DISC_PATH)/stage2a2.mmd: \
 	shared_mmd_layout.s \
@@ -114,18 +160,24 @@ $(DISC_PATH)/stage2a2.mmd: \
 	stage2a2_state_res.s \
 	$(DISC_PATH)/ipx.mmd
 
-## Stage 4A: real .mc9 save-state graveyard
+## STG4A captured cemetery window
 $(DISC_PATH)/stage4a.mmd: \
 	shared_mmd_layout.s \
 	std_init.s \
-	stage4a_state.c \
-	stage4a_state_res.s \
+	stage4a_capture.c \
+	stage4a_capture_res.s \
 	$(DISC_PATH)/ipx.mmd
 
-## Stage 1A: real .mc1 save-state shrine (retail STG1A palette)
 $(DISC_PATH)/stage1a.mmd: \
 	shared_mmd_layout.s \
 	std_init.s \
 	stage1a_state.c \
 	stage1a_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+$(DISC_PATH)/stage4ax.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage4a_state.c \
+	stage4a_state_res.s \
 	$(DISC_PATH)/ipx.mmd

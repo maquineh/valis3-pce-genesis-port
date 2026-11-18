@@ -1,13 +1,17 @@
 {
-  "source": "states\\Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.stg1a.mc1",
+  "source": ".\\states\\Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.stg1a.mc1",
   "screens": 2,
   "rows": [
     0,
     8
   ],
+  "columns": [
+    0,
+    0
+  ],
   "col0": 0,
-  "tiles": 188,
-  "tiles_bytes": 6016,
+  "tiles": 187,
+  "tiles_bytes": 5984,
   "maps_bytes": 3072,
   "pal_bytes": 128,
   "pce_palettes": [
@@ -17,9 +21,24 @@
     3
   ],
   "pal_map": {
-    "0": 0,
     "1": 1,
+    "0": 0,
     "3": 3
   },
-  "palette_source": "build/stg_extract/STG1A_pal.bin+0x64"
+  "fallback_pce_palette": null,
+  "palette_mode": "exact-color-pack",
+  "line3_used_indices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "reserved_line3": [
+    8,
+    9,
+    15
+  ],
+  "palette_source": "build/stg_extract/STG1A_pal.bin:0x64"
 }

@@ -74,7 +74,8 @@ OPCODES = {
 
 LEN = {
     "imp": 1, "acc": 1, "imm": 2, "zp": 2, "zpx": 2, "zpy": 2, "izx": 2,
-    "izy": 2, "izp": 2, "rel": 2, "abs": 3, "abx": 3, "aby": 3, "ind": 3,
+    "izy": 2, "izp": 2, "rel": 2, "abs": 3, "abx": 3, "aby": 3,
+    "ind": 3, "abx_ind": 3,
 }
 
 
@@ -103,7 +104,7 @@ OPCODES.update({
     0x8F: ("BBS0", "bbr"), 0x9F: ("BBS1", "bbr"), 0xAF: ("BBS2", "bbr"),
     0xBF: ("BBS3", "bbr"), 0xCF: ("BBS4", "bbr"), 0xDF: ("BBS5", "bbr"),
     0xEF: ("BBS6", "bbr"), 0xFF: ("BBS7", "bbr"),
-    0x6C: ("JMP", "ind"), 0x7C: ("JMP", "abx"),
+    0x6C: ("JMP", "ind"), 0x7C: ("JMP", "abx_ind"),
     0xDC: ("???", "imp"), 0x5C: ("???", "imp"), 0xFC: ("???", "imp"),
     0x1C: ("TRB", "abs"), 0x0C: ("TSB", "abs"), 0x3C: ("BIT", "abx"),
 })
@@ -114,7 +115,11 @@ LEN.update({
 })
 
 
-def disasm_one(code, pc):
+def disasm_one(code, pc, address_pc=None):
+    # `pc` is the byte offset used to read `code`; callers that disassemble a
+    # de-striped CD payload can supply its HuC6280 logical address separately.
+    if address_pc is None:
+        address_pc = pc
     op = code[pc]
     if op not in OPCODES:
         return None, 1
@@ -145,7 +150,7 @@ def disasm_one(code, pc):
     if mode == "izp":
         return "%s ($%02X)" % (mn, a), n
     if mode == "rel":
-        return "%s $%04X" % (mn, (pc + 2 + ((a ^ 0x80) - 0x80)) & 0xFFFF), n
+        return "%s $%04X" % (mn, (address_pc + 2 + ((a ^ 0x80) - 0x80)) & 0xFFFF), n
     if mode == "abs":
         return "%s $%04X" % (mn, a | (c << 8)), n
     if mode == "abx":
@@ -154,6 +159,8 @@ def disasm_one(code, pc):
         return "%s $%04X,Y" % (mn, a | (c << 8)), n
     if mode == "ind":
         return "%s ($%04X)" % (mn, a | (c << 8)), n
+    if mode == "abx_ind":
+        return "%s ($%04X,X)" % (mn, a | (c << 8)), n
     if mode == "block":
         # opcode, ss, SS, dd, DD, ll, LL  (little-endian, like every 6502 word)
         src = b[1] | (b[2] << 8)
@@ -169,7 +176,7 @@ def disasm_one(code, pc):
     if mode == "tst_absx":
         return "%s #$%02X, $%04X,X" % (mn, a, c | (d << 8)), n
     if mode == "bbr":
-        return "%s $%02X, $%04X" % (mn, a, (pc + 3 + ((c ^ 0x80) - 0x80)) & 0xFFFF), n
+        return "%s $%02X, $%04X" % (mn, a, (address_pc + 3 + ((c ^ 0x80) - 0x80)) & 0xFFFF), n
     return ".byte $%02X" % op, n
 
 

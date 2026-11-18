@@ -1,11 +1,11 @@
-"""Analyse each stage segment header and map region on the disc.
+"""Analyse each stage segment header and scan candidate 0x600-byte regions.
 
 Every 40-sector block starts with a frame header, a short parameter area and
 an ASCII stage label ("STG1A", "STG2A", ...).  The first parameter is a
 sequence number 00..09, so the disc literally enumerates the ten stage
-segments.  This tool prints the headers and then, for each block, scans the
-0x600 map grid for the screens whose tile indices concentrate in a narrow
-range (the signature of a real playfield BAT).
+segments. This tool prints the headers and then scans aligned 0x600-byte
+regions for a tile-index concentration heuristic. A hit is only a candidate:
+no scanned region has been verified against a captured gameplay BAT.
 """
 import sys
 
@@ -32,7 +32,7 @@ for sec, label in BLOCKS:
     print('%6d %-8s $%06X  %s' % (sec, label, sec * 2352, params.hex()))
 print()
 
-print('map slots per stage block (0x600 grid, tiles concentrated in $200-$2FF):')
+print('candidate 0x600 regions (heuristic: tiles concentrated in $200-$2FF):')
 for sec, label in BLOCKS:
     start = sec * 2352
     end = start + 40 * 2352
@@ -51,7 +51,7 @@ for sec, label in BLOCKS:
         if conc >= 0.15 and len(distinct) >= 40:
             found.append((off, conc, len(distinct)))
         off += GRID
-    print('  %-8s sector %3d  $%06X-$%06X : %d map slots'
+    print('  %-8s sector %3d  $%06X-$%06X : %d candidates'
           % (label, sec, start, end, len(found)))
     for off, conc, d in found[:8]:
         print('        $%06X concentration=%.2f distinct=%d' % (off, conc, d))

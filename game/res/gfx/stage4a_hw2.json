@@ -1,0 +1,14 @@
+{
+  "tiles": 286,
+  "screens": 1,
+  "background_lines": [
+    0,
+    1
+  ],
+  "enemy_line": 2,
+  "pce_enemy_palette": 2,
+  "merged_color": "0x466",
+  "replacement_color": "0x468",
+  "changed_pixels": 10,
+  "weighted_squared_rgb_error": 10
+}

@@ -35,7 +35,7 @@ def main():
     bad_tile = 0
     used = set()
     for i in range(SCREENS * ROWS * COLS):
-        w = m[i * 2] | (m[i * 2 + 1] << 8)
+        w = (m[i * 2] << 8) | m[i * 2 + 1]
         tile = w & 0x7FF
         if tile >= TILE_COUNT:
             bad_tile += 1

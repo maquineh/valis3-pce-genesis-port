@@ -1,15 +1,7 @@
-/* Tile/palette/map resources converted from the PC Engine original.
- *
- * - title_tiles.bin : 1280 8x8 tiles, PC Engine 4bpp planar already converted
- *                     to Mega Drive tile order by tools/pce2md.py
- * - title_pal.bin   : 64 VCE colour words converted to Mega Drive CRAM words
- * - title_map.bin   : 32x28 plane A entries (tile index + palette line)
- *
- * Sources (PC Engine disc, track 2):
- *   tiles  : file offset $6E40  (cd_read sector $0C -> VRAM word $1000)
- *   map    : file offset $123D40 (PC Engine BAT, 32x28 words)
- *   palette: file offset $1F00  (VCE colour words, first 64 = BG palettes 0-3)
- */
+/* Title/menu capture converted to Mega Drive tile, palette and map data.
+ * Tile zero is transparent; the map has 32x28 big-endian plane A entries
+ * and the palette consists of four shared 16-color Mega Drive lines.
+ * See the title resource metadata for the capture and conversion details. */
 
 .section .rodata
 #include <macros.s>

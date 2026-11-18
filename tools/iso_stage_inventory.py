@@ -28,6 +28,7 @@ BLOCK = 0x14000
 
 # save-state coverage found by scanning every .mcX in the root and states/
 COVER = {
+    'STG1A': 'states `…stg1a.mc1`',
     'STG2A': 'root `.mc0`, states `.mc0`/`.mc1` (room 1 + seaside)',
     'STG2B': 'root `.mc2`',
     'STG2C': 'root `.mc3`, states `.mc2`/`.mc3` (dungeon + green room)',
@@ -121,16 +122,16 @@ def main():
                  'palette data at `+0x264`; Shift-JIS text at `+0xC00`.\n\n')
         fh.write('| block | sector | idx | rooms | ch | tiles | save state | module |\n')
         fh.write('|-------|--------|-----|-------|----|-------|------------|--------|\n')
-        mods = {'STG2A': '`STAGE2.MMD` + `STAGE2A2.MMD`', 'STG2B': '`STAGE2B.MMD`',
+        mods = {'STG1A': '`STAGE1A.MMD`', 'STG2A': '`STAGE2.MMD` + `STAGE2A2.MMD`', 'STG2B': '`STAGE2B.MMD`',
                 'STG2C': '`STAGE2C.MMD`', 'STG3A': '`STAGE3A.MMD`',
-                'STG4A': '`STAGE4A.MMD`'}
+                'STG4A': '`STAGE4A.MMD` + `STAGE4AX.MMD`'}
         for name, sector, idx, rooms, chapter, count, cover, text in rows:
             fh.write('| %s | %d | %d | %d | %d | %d | %s | %s |\n' %
                      (name, sector, idx, rooms, chapter, count, cover,
                       mods.get(name, '—')))
         fh.write('\nTile sheets: `build/gfx/stg_inventory/<NAME>_tiles.png`; '
                  'contact sheet: `build/gfx/stg_inventory/contact.png`.\n\n')
-        fh.write('The five blocks **STG1A, STG3B, STG4B, STG4C and STG5A** '
+        fh.write('The four blocks **STG3B, STG4B, STG4C and STG5A** '
                  'are present in the ISO with their tiles, palettes, text and '
                  'object records, but no save state covers them.  Their BAT is '
                  'generated at runtime, so a gameplay F5 state is required to '

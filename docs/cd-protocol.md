@@ -1,5 +1,13 @@
 # CD drive protocol: what the real System Card v3.0 needs
 
+> **Current status (2026-11-15):** the unshimmed New Game path uses
+> `ValisDisc()` for the full TOC, executes the track-20 `ACT0` visual module,
+> and reads LBA 52450–52473, 52478–52493 and 52494–52513. The extended run
+> stops at `$20D8` on opcode `$0B` without reading an `STG` block. Older notes
+> below describe earlier boot attempts.
+> See
+> [`bios-boot-progress.md`](bios-boot-progress.md) for the current result.
+
 ## Bank mapping matters when reading the BIOS
 
 `cd_boot` leaves `MPR6 = $01`, so logical `$C000-$DFFF` resolves to

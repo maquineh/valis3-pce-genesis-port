@@ -1,67 +1,62 @@
-## Traced upload routines (this pass)
+# Stage chunk graphics path
 
-All offsets below are file offsets in `build/extracted/data/track_02.bin`,
-with the chunk base **logical `$8000` <- file `$23E390`** (the 4-sector chunk
-read by `cd_read` at `$2252C4`, sector 1000, `dh=$01`).
+The addresses below come from the four-sector read at sector 1000, loaded at
+logical `$8000`. Track files retain 2352-byte raw sectors; map logical
+addresses with `tools/logical_to_file.py --range 1000 4 0x8000` so the 16-byte
+header in each sector is skipped.
 
-### `$847C` (file `$23E80C`) - the multi-read setup
+## `$847C` — select and read the stage data
 
-Traced in `docs/stage-loader.md`.  Performs, in order:
+At file `$23E80C`, this routine selects CD base track 24 through `$895D`, then:
 
-| step | BIOS call | sector | count | dest |
-|---|---|---|---|---|
-| 1 | `ad_trans` `$E033` | 0 | 29 | `$0000`, `dh=$00` |
-| 2 | `cd_read` `$E009` | 32 | 24 sectors | `$1000`, `dh=$FF` |
-| 3 | `cd_read` `$E009` | 56 | 8 sectors | `Mpr5 + $FFF5+5`, `dh=$05` |
+| BIOS call | relative sector | count | destination |
+|---|---:|---:|---|
+| `ad_trans` `$E033` | 0 | 29 sectors | ADPCM transfer buffer |
+| `cd_read` `$E009` | 32 | 24 sectors | local RAM `$1000` |
+| `cd_read` `$E009` | 56 | 8 sectors | MPR5 bank `$FFF5+5` |
 
-`dh=$FF` takes `al` as a **sector count** and `bx` as the address, while
-`dh=$FE` (the tile blocks in `tools/list_vram_reads.py`) takes `ah:al` as a
-**byte count** into VRAM.
+The later stream decoder calls `ad_read` `$E036`; its source address is kept in
+the `$3E02/$3E03` byte offset, while the selected CD base and low sector byte
+come from the loader's current CD state.
 
-### `$8790` (file `$23EB20`) - buffer shift + palette command
+## `$8790` — initialize two RAM buffers
 
-Coherent routine, ends in `RTS`:
+At file `$23EB20`, the routine contains these HuC6280 block transfers:
 
-```
-$23EB20  STZ $A000
-$23EB23  TII $00A0, $01A0, $FF1F     ; 65279-byte copy, +$100 shift
-$23EB2A  STZ $3A00
-$23EB2D  TII $003A, $013A, $FF03     ; 65279-byte copy, +$100 shift
-$23EB34  LDA #$00 ; STA $2220
-         LDA #$3A ; STA $2221
-         LDA #$10 ; STA $2222
-         LDA #$00 ; STA $2223
-         LDA #$3C ; STA $2224
-         LDA #$08 ; STA $2225
-         LDA #$02 ; STA $221F
-$23EB57  JSR $E0E4                   ; ex_colorcmd
-$23EB5A  RTS
+```text
+$8790  STZ $A000
+       TII $A000, $A001, $1FFF
+       STZ $3A00
+       TII $3A00, $3A01, $03FF
+       ... set VCE color-command registers ...
+       JSR $E0E4
+       RTS
 ```
 
-**Finding:** the playfield is kept as a **~64 KiB RAM buffer** that is shifted
-by `$100` bytes (8 tiles) - i.e. the game scrolls a RAM copy of the stage and
-uploads the visible part to VRAM.  That is why no plain 32x24 BAT exists on
-the disc for stages 2-10: the BAT is *generated* from this buffer.
+This is not a 64 KiB scrolling-buffer shift. The copies are `$1FFF` and
+`$03FF` bytes, followed by VCE command setup.
 
-### `$9366` region (file `$23EB79`) - tile upload
+## `$9366` — LZ-style tile decoder
 
+The routine is in the same loaded chunk at file `$23F956` (sector 1002 payload
+offset `$366`). The caller at `$87E9` is file `$23EB79`:
+
+```text
+$87E9  JSR $9366
+       JSR $E07B
+       LDX $3E07
+       CLA
+       JSR $E0AE                ; set VDC MAWR from $3E07
+       TIA $A000, $0002, $2000  ; upload 8 KiB from RAM to VRAM
 ```
-$23EB79  JSR $9366
-$23EB7C  JSR $E07B                   ; ex_vsync
-$23EB7F  LDX $3E07
-$23EB82  CLA
-$23EB83  JSR $E0AE                   ; ex_setwrt -> MAWR = $3E07
-$23EB86  TIA $00A0, $0200, $0020     ; 32-byte transfer
-$23EB8D  LDA $3E07                   ; <-- data table starts here
-```
 
-So the tile upload writes 32 bytes (one tile) per call to the VDC, with the
-address taken from the variable at `$3E07`, and the source data is the table
-that begins at file `$23EB90`.  **That table is the compressed tile stream**
-that has to be decoded.
+The decoder reads an 8-byte stream header. Header bytes 0-1 advance the next
+stream offset by that value plus eight; bytes 4-5 set the decoded byte count.
+It reads literal/back-reference tokens, stores history at `$D000-$DFFF`, and
+keeps the current 8 KiB output window at `$A000-$BFFF`. The first stage call
+sets `$3E07` to `$10`, so the upload begins at VDC word address `$1000` (tile
+index `$100`).
 
-### `$8839`, `$88E2`, `$959B`
-
-These do **not** resolve inside the sector-1000 chunk (file `$23EBC9` onwards
-is not code), so they belong to a different overlay.  They are the remaining
-references to trace.
+This path accounts for tile graphics. No BAT write is present in `$9366` or
+its `$87E9` upload call, and the decoder input has not yet been matched to the
+`+0x800` area of an `STG` block. The stage BAT/object generation remains open.

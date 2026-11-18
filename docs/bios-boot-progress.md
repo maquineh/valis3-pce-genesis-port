@@ -1,8 +1,41 @@
-# Real System Card v3.0 boot — progress (this pass)
+# Real System Card v3.0 boot — progress (2026-11-15)
 
-The emulator now runs the **real, unshimmed** Japanese Super System Card
-(`syscard3.pce`) from its reset vector and gets as far as the game's own boot
-block.
+`tools/run_full_disc.py` runs the unshimmed Japanese v3.0 System Card against
+`ValisDisc`, including the full 72-track TOC, and advances the approximate
+NTSC frame clock in `tools/pce_timing.py`. The New Game path now runs beyond
+the startup overlay: after the RUN press it reads LBA 4416–4427, later reads
+track-2 ranges 4740–4751, 4752–4771 and 4770–4801, and executes the track-20
+overlay whose header identifies it as `VALIS III ACT0 visual Over-ray Module
+by Junpeh`. That module reads LBA 52450–52473, 52478–52493 and 52494–52513,
+then starts CD-DA track 8.
+
+Shorter follow-up runs ended in the BIOS VSync routine. An extended run
+advanced to 1,127 VBlank interrupts, then stopped at `$20D8` on opcode `$0B`
+after a call at `$4D41` jumped to `$0000`. It issued no further CD command
+after starting CD-DA track 8 and read none of the ten `STG` blocks. The
+standard HuC6280 opcode table marks `$0B` illegal, so this trace does not
+justify adding an opcode handler; the branch and loaded memory need tracing.
+See the [opcode table](https://git.byronlathi.com/bslathi19/cc65/src/commit/d6290e0a0f500165a5f5ed73237077175aaad638/src/da65/opchuc6280.c#L91).
+
+The trace narrows the fault to a banked BIOS callback. The VBlank path reaches
+`$E8B7` and calls `$E86A`, which jumps through the work-RAM vector at
+`$2208/$2209 = $4D3A`. With `MPR2=$82`, logical `$4D3A` resolves to CDRAM
+offset `$4D3A`, where the bytes are a data table and `$4D41` is `JSR $0000`.
+With `MPR2=$80`, the same logical address resolves to CDRAM offset `$0D3A`,
+which contains coherent callback code. The current evidence points to the
+callback vector remaining valid for the old bank while the active MPR2 has
+changed; why the ACT0 path leaves that mapping in place is still unresolved.
+Do not treat `$0B` as the root cause or add it as an instruction.
+
+After track 20 was reached, extra RUN, I, II, and I+II pulses were observed
+by the BIOS but caused no new CD read in their respective captured windows.
+The new-game path reaches ACT0 code, but it has not reached a stage loader.
+
+The earlier no-sector result came from the trace runner's single-track
+`emu_game.Disc`, which has neither `tracks` nor `toc_info()`. Its fallback
+returned zero track positions/control bytes for DINFO(AL=2), so the BIOS could
+not identify the real data track. Switching this runner to `ValisDisc()` fixes
+the TOC input without changing the SCSI protocol model.
 
 ## What was wrong in the core
 
@@ -40,7 +73,7 @@ The CD unit is a SCSI device:
 * DINFO (`$DE`) returns the real TOC: 72 tracks, track 2 starts at
   `00:44:65`, control bit 2 set (data).
 
-## Verified run
+## Earlier trace output (superseded)
 
 ```
 $ python3 tools/trace_boot_real.py syscard3.pce 2000000
@@ -50,9 +83,10 @@ disc reads: [0, 1, 2, 3, 4, 5] count 14
 VRAM writes: 19931 CRAM: 370
 ```
 
-The BIOS initialises the VDC, detects the CD unit, scans the TOC, reads the
-IPL sectors, compares the 1237-byte boot signature against the card's table at
-physical `$3FAE1`, and calls the game's boot block at `$2B26`.
+This output came from an earlier runner using the single-track disc reader and
+accelerated IRQ scheduling. It is retained as historical output only. The
+current runner uses `ValisDisc()` and cycle-based VBlank timing; it completes
+DINFO and reads the opening program, but still has not reached a stage block.
 
 ## The 74-byte check was a false alarm
 
@@ -108,7 +142,7 @@ sequential screen order is almost entirely black, so the track-6 tile sheet
 is a tileset, not a screen-order stream.  The stage map/palette encoding is
 therefore still unknown.
 
-## Remaining blocker
+## Earlier reset and CONTINUE blockers (historical)
 
 The title/menu loop runs.  Forcing the START branch (`$4167` -> `$42AA`)
 leads to a fade/wait loop at `$44DA`.  Forcing the resident-overlay path
@@ -163,8 +197,9 @@ So the data is identical; the project cue had simply placed track 2 at the
 `tools/pce_system.py` now reports `00:47:65` and `tools/emu_game.py` rebases
 absolute LBAs at 3440 instead of 3215.
 
-The game still stops after the act-title card and issues reads with the
-24-bit LBA `-150` (track-1 lead-in/audio).  The emulator now maps negative
+At the time of this trace, the game still stopped after the act-title card
+and issued reads with the 24-bit LBA `-150` (track-1 lead-in/audio). The
+emulator now maps negative
 LBAs to the retail CD-DA track 1 (`build/retail/...Track 01.bin`), enables an
 audio phase for positive LBAs below 3440, implements vendor SCSI `D8/D9` and
 a bounded `cd_stat` "playing" state (5000 polls), and can stub
@@ -270,3 +305,28 @@ Stage 2's live BAT has been captured (from the save state).  Stages 1 and
 3-10 have their raw tiles and palette data extracted, but their maps still
 need the BAT/object decoder.  See `docs/stg-format.md` for the offsets and
 tools.
+
+## Extracted-track boot and stage-read trace (earlier result, 2026-11-15)
+
+The retail CUE/BIN set is not present in this checkout, but the local
+`build/extracted/` set contains the 72 track payloads and audio WAVs.
+`tools/valis_toc.py` now reconstructs absolute INDEX 01 LBAs and the 72-track
+TOC from `build/extracted/tracks.json` when the retail CUE is unavailable.
+`tools/valis_disc.py` serves MODE1 payload sectors from `data/track_NN.bin`
+and CD-DA frames from the extracted WAVs. `tools/run_full_disc.py` now boots
+through the opening card, reads the act-card and track-6 sample ranges, and
+starts the audio path using those local files.
+
+`tools/pce_timing.py` advances an approximate frame clock from the HuC6280
+cycle table, CSH/CSL speed switches, and block-transfer lengths. It uses
+119,318 high-speed-equivalent cycles per NTSC frame; it is not a cycle-perfect
+VDC or CD model. The current New Game follow-up described at the top of this
+document uses that clock and reaches track 20's ACT0 module. It still has not
+demonstrated an `STG` block read. The four PCE blocks represented by scene
+prototypes and the six blocks without gameplay captures are unchanged; the
+BAT/object decoder remains unresolved.
+
+The extracted `+0x1000` areas also vary by stage and include Shift-JIS text,
+so treating that full region as a uniform fixed-width object table is not
+verified. Raw STG tiles and palette data are available for all ten blocks;
+they are not enough by themselves to recover the missing gameplay BATs.

@@ -1,0 +1,37 @@
+{
+  "source": "Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc3",
+  "screens": 1,
+  "rows": [
+    34
+  ],
+  "columns": [
+    32
+  ],
+  "col0": 0,
+  "tiles": 80,
+  "tiles_bytes": 2560,
+  "maps_bytes": 1536,
+  "pal_bytes": 128,
+  "pce_palettes": [
+    2,
+    14,
+    3,
+    0
+  ],
+  "pal_map": {
+    "2": 0,
+    "3": 2,
+    "0": 3,
+    "14": 1
+  },
+  "fallback_pce_palette": null,
+  "palette_mode": "exact-color-pack",
+  "line3_used_indices": [
+    0
+  ],
+  "reserved_line3": [
+    8,
+    9,
+    15
+  ]
+}

@@ -17,7 +17,8 @@ STG_NAMES = [b'STG1A', b'STG2A', b'STG2B', b'STG2C', b'STG3A',
 
 
 def load(path):
-    raw = open(path, 'rb').read()
+    with open(path, 'rb') as stream:
+        raw = stream.read()
     return gzip.decompress(raw) if raw[:2] == b'\x1f\x8b' else raw
 
 

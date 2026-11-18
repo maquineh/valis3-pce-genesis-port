@@ -56,9 +56,9 @@ ASCII name.  Verified layout (`tools/extract_stg_assets.py`):
 ```
 +0x000  header
 +0x200  palette / colour tables (live CRAM words start around +0x264)
-+0x800  compressed stream (BAT / tilemap)
++0x800  high-entropy data region (runtime role not identified)
 +0xC00  Shift-JIS stage text
-+0x1000 object / level records (5-6 byte records)
++0x1000 variable stage data (object/level-looking records mixed with other content)
 +0x6E40 raw 4bpp tile graphics, 32 bytes per tile
 ```
 
@@ -72,20 +72,38 @@ The live Stage 2 VRAM confirms 802 of the 1678 block tiles somewhere in VRAM
 The palette at `+0x264` is the same table family as the live CRAM: 61 of 64
 16-byte CRAM chunks are found in that palette region of STG2A.
 
-The BAT itself is not stored raw: the 64x64 map is built by the game from the
-`+0x800` stream and/or the object records.  That is the remaining decode
-step for stages other than Stage 2; the raw tile and palette data for all ten
-stages are already extracted.
+The gameplay BAT is generated at runtime and has not been matched to a raw
+region in these blocks. The `$9366` decoder in the sector-1000 loader expands
+an 8 KiB tile window from a CD stream, but its input has not been tied to the
+`+0x800` region or the variable data beginning at `+0x1000`. That region is
+not a verified fixed-width record table: the ten blocks differ, and some
+contain Shift-JIS text there. These regions remain candidates for further
+tracing. The raw tile and palette data for all ten `STG` blocks are already
+extracted.
 
 ## Tools
 
 ```
 python3 tools/extract_stg_assets.py     # ten blocks -> build/stg_extract/
 python3 tools/extract_state_stage2.py   # live Stage 2 -> build/state_stage2/
+python3 tools/render_pce_state.py STATE.mcX [OUTPUT.png] [--atlas SPRITES.png]
 python3 tools/valis_toc.py              # 72-track absolute TOC
 python3 tools/run_full_disc.py          # full-disc run (track 6 / ADPCM)
+python3 tools/run_until_stage.py        # long boot; reports watched STG reads
 python3 tools/pce_state.py STATE.mc0    # list Mednafen state variables
 ```
+
+If `build/retail/` is absent, TOC and sector reads fall back to the local
+`build/extracted/` manifest, data-track BINs, and audio WAVs. A long run that
+does not request the STG LBA ranges only establishes that this boot path has
+not reached those reads; the gameplay BAT decoder is still open.
+
+`render_pce_state.py` draws a 256x224 reference frame from a Mednafen state,
+including the captured SAT sprites. `--atlas` also writes the nonempty SAT
+entries with their indices, positions, pattern pointers and attributes. It is a
+static inspection tool: it does not run the PCE CPU or reproduce display
+timing, and should be used to classify captured sprites before packing art
+rather than as a gameplay test.
 
 ## Port integration (Stage 2, verified)
 
@@ -104,6 +122,7 @@ game/res/gfx/stage2_state_pal.bin     4 MD palettes / 128 B
 `tools/build_megacd.ps1` -> `tools/mcd_make_disc.py`; `tools/verify_all.py`
 reports 41 PASS / 0 FAIL and the data ISO contains `STAGE2.MMD`.
 
-Remaining: only Stage 2 has a captured BAT.  Stages 1 and 3-10 have their
-raw tiles and palettes extracted, but their maps still need the BAT/object
-decoder.
+Gameplay BAT captures currently cover STG2A/B/C and STG3A. STG1A, STG3B,
+STG4A/B/C and STG5A still need gameplay captures. Although every block's raw
+tiles and palette data are extracted, those bytes do not provide the live BAT
+map by themselves; see `stage-status.md` for the current module inventory.

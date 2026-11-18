@@ -15,11 +15,12 @@
 /* Ask the Sub CPU to start CD-DA playback at a disc track (1 = no playback).
  * Disc tracks are indexed on the built disc: track 1 = data, 2.. = the
  * original PC Engine soundtrack tracks (see docs/findings.md). */
-static inline void engine_play_cdda(u8 disc_track)
+static inline void engine_audio_command(u16 command, u8 disc_track)
 {
-  grant_2m();
+  /* The playback command uses Sub CPU program RAM, not Word RAM. Keep Word
+   * RAM on the Main CPU side; the Sub CPU has nothing to transfer back. */
   *ga_reg_comcmd1 = disc_track;
-  *ga_reg_comcmd0 = CMD_PLAY_CDDA;
+  *ga_reg_comcmd0 = command;
   do
   {
     asm("nop");
@@ -29,7 +30,16 @@ static inline void engine_play_cdda(u8 disc_track)
   {
     asm("nop");
   } while (*ga_reg_comstat0 != 0);
-  wait_2m();
+}
+
+static inline void engine_play_cdda(u8 disc_track)
+{
+  engine_audio_command(CMD_PLAY_CDDA, disc_track);
+}
+
+static inline void engine_repeat_cdda(u8 disc_track)
+{
+  engine_audio_command(CMD_REPEAT_CDDA, disc_track);
 }
 
 static inline void engine_stop_cdda(void)

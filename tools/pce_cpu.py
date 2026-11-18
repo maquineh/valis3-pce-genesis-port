@@ -51,7 +51,9 @@ for c, mn, md, cyc in [
     (0x65, "ADC", ZP, 3), (0x66, "ROR", ZP, 5), (0x68, "PLA", IMP, 4),
     (0x69, "ADC", IMM, 2), (0x6A, "ROR", ACC, 2), (0x6C, "JMP", IND, 5),
     (0x6D, "ADC", ABS, 4), (0x6E, "ROR", ABS, 6), (0x70, "BVS", REL, 2),
-    (0x71, "ADC", IZY, 5), (0x72, "ADC", IZP, 5), (0x75, "ADC", ZPX, 4),
+    (0x7C, "JMP", ABX_IND, 6),
+    (0x71, "ADC", IZY, 5), (0x72, "ADC", IZP, 5),
+    (0x74, "STZ", ZPX, 4), (0x75, "ADC", ZPX, 4),
     (0x76, "ROR", ZPX, 6), (0x78, "SEI", IMP, 2), (0x79, "ADC", ABY, 4),
     (0x7D, "ADC", ABX, 4), (0x7E, "ROR", ABX, 7), (0x81, "STA", IZX, 6),
     (0x84, "STY", ZP, 3), (0x85, "STA", ZP, 3),
@@ -306,6 +308,11 @@ class HuC6280(object):
             lo = read(p)
             hi = read((p + 1) & 0xFFFF)
             addr = (lo | (hi << 8)) & 0xFFFF
+        elif md == ABX_IND:
+            p = (absa() + self.x) & 0xFFFF
+            lo = read(p)
+            hi = read((p + 1) & 0xFFFF)
+            addr = (lo | (hi << 8)) & 0xFFFF
         elif md in (TST_ZP, TST_ABS, TST_ZPX, TST_ABSX):
             self._tst_imm = self.fetch()
             if md == TST_ZP:
@@ -344,7 +351,7 @@ class HuC6280(object):
         else:
             raise RuntimeError("mode %d for %s" % (md, mn))
 
-        if addr is not None and md not in (IMP, IMM, ACC, REL, 15):
+        if addr is not None and md not in (IMP, IMM, ACC, REL, IND, ABX_IND, 15):
             val = rd(addr)
 
         # ---- ALU / memory ops -------------------------------------------

@@ -21,6 +21,22 @@ def color(v):
     return (r * 255 // 7, g * 255 // 7, b * 255 // 7)
 
 
+def tile_pixel(vram, tile, y, x):
+    """Decode one PCE 8x8 background pixel from VRAM words.
+
+    Each tile is 32 bytes (16 little-endian words). Planes 0/1 are
+    interleaved in words 0..7 and planes 2/3 in words 8..15.
+    """
+    base = tile * 16
+    bit = 7 - x
+    low_planes = vram[base + y]
+    high_planes = vram[base + 8 + y]
+    return ((low_planes >> bit) & 1) \
+        | (((low_planes >> (bit + 8)) & 1) << 1) \
+        | (((high_planes >> bit) & 1) << 2) \
+        | (((high_planes >> (bit + 8)) & 1) << 3)
+
+
 def main():
     vram_path, cram_path, out = sys.argv[1], sys.argv[2], sys.argv[3]
     bx = int(sys.argv[4], 0)
@@ -43,16 +59,9 @@ def main():
             e = vram[(row * bat_w + col) & (len(vram) - 1)]
             tile = e & 0x7FF
             palno = (e >> 12) & 0xF
-            base = tile * 16
-            if base + 16 > len(vram):
+            if tile * 16 + 16 > len(vram):
                 continue
-            w0 = vram[base + py * 2]
-            w1 = vram[base + py * 2 + 1]
-            bit = 7 - px
-            v = (w0 >> bit) & 1
-            v |= ((w0 >> (bit + 8)) & 1) << 1
-            v |= ((w1 >> bit) & 1) << 2
-            v |= ((w1 >> (bit + 8)) & 1) << 3
+            v = tile_pixel(vram, tile, py, px)
             pix[sx, sy] = pal[(palno * 16 + v) & 0xFF]
     img = img.resize((512, 448), Image.NEAREST)
     img.save(out)

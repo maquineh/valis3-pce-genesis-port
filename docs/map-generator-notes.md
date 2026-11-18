@@ -45,10 +45,8 @@ layer.
 
 The state's zero-page `$D8/$D9` is `0x3E00`, but that work-RAM region holds
 the 8-byte sprite table (`$D8..`), not the map stream: the pointer is
-overwritten after the map is built.  The map stream is not stored as plain
-bytes in the STG block (the 0x800 region is high-entropy), so it is
-decompressed/copied into RAM before `$7190` runs.  The decompressor has not
-been located yet.
+overwritten after the map is built. The `+0x800` STG region is high-entropy,
+but it has not been linked to a runtime BAT stream.
 
 ## Correction: $7190 is the text/menu renderer
 
@@ -73,6 +71,16 @@ INC $D6; DEC $D4; BNE ...
 
 No direct `JSR $D1E5` / `JMP $D1E5` caller was found, and the byte pairs
 `E5 D1` in the CDRAM are instruction operands (`SBC $D1`), not pointer-table
-entries.  Its caller is likely reached through a RAM vector/trampoline that
-has not been located.  The terrain loader therefore remains undecoded; the
-gameplay save-state pipeline is still the reliable route.
+entries. Its caller is likely reached through a RAM vector/trampoline that
+has not been located.
+
+## Correction: the `$9366` graphics decoder
+
+The sector-1000 stage chunk contains an LZ-style decoder at logical `$9366`
+(raw file `$23F956` after stripping sector headers). Its caller at `$87E9`
+uploads an 8 KiB byte window to VRAM word address `$1000`; it does not write
+BAT words. This is a tile-data path, not the missing terrain map generator.
+See `docs/upload-routines.md` for the header and history-buffer details.
+
+The BAT-generation routine remains unlocated, so the gameplay save-state
+pipeline is still the reliable way to build scenes.

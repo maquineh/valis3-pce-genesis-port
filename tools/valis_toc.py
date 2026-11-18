@@ -8,9 +8,11 @@ disc file sector 0 is MSF 00:00:00, i.e. absolute LBA -150.
 
 import os
 import re
+import json
 
 RETAIL = os.path.join('build', 'retail')
 CUE = os.path.join(RETAIL, 'Valis III (Japan).cue')
+EXTRACTED_MANIFEST = os.path.join('build', 'extracted', 'tracks.json')
 
 
 def msf_bcd(lba):
@@ -61,7 +63,47 @@ def parse_cue(path=CUE):
     return tracks
 
 
-TOC = parse_cue()
+def parse_extracted_manifest(path=EXTRACTED_MANIFEST):
+    """Rebuild absolute track positions from cue_split's local manifest.
+
+    `cue_split.py` extracts each track beginning at INDEX 01. The manifest
+    retains the INDEX 01 offset and original file end, which are enough to
+    reconstruct the pregap-inclusive disc layout when the source CUE/BIN set
+    is no longer present.
+    """
+    manifest = json.load(open(path, encoding='utf-8'))
+    tracks = []
+    pos = 0
+    for item in manifest['tracks']:
+        index1 = int(item.get('start_frame', item.get('index01', 0)))
+        frames = int(item['frames'])
+        sectors = index1 + frames
+        mode = item['type'].upper()
+        track = int(item.get('number', item.get('track')))
+        lba0 = pos - 150
+        lba1 = lba0 + index1
+        tracks.append({
+            'file': item['file'], 'index0': item.get('index00'),
+            'index1': index1, 'mode': mode, 'track': track,
+            'file_sector': pos, 'lba0': lba0, 'lba1': lba1,
+            'sectors': sectors,
+            'control': 0x04 if mode.startswith('MODE') else 0x00,
+            'msf_bcd': msf_bcd(lba1),
+        })
+        pos += sectors
+    return tracks
+
+
+def load_toc():
+    try:
+        return parse_cue()
+    except OSError:
+        if os.path.isfile(EXTRACTED_MANIFEST):
+            return parse_extracted_manifest()
+        raise
+
+
+TOC = load_toc()
 BY_TRACK = {t['track']: t for t in TOC}
 
 

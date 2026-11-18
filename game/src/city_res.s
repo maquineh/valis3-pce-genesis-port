@@ -1,0 +1,34 @@
+.section .rodata
+#include <macros.s>
+GLABEL city_street
+.incbin "../res/gfx/city_street.bin"
+.align 2
+GLABEL city_meeting
+.incbin "../res/gfx/city_meeting.bin"
+.align 2
+GLABEL city_fall
+.incbin "../res/gfx/city_fall.bin"
+.align 2
+GLABEL city_roof
+.incbin "../res/gfx/city_roof.bin"
+.align 2
+GLABEL city_combat
+.incbin "../res/gfx/city_combat.bin"
+.align 2
+
+GLABEL city_late
+.incbin "../res/gfx/city_late.bin"
+.align 2
+GLABEL city_boss
+.incbin "../res/gfx/city_boss.bin"
+.align 2
+GLABEL city_cinema_meeting
+.incbin "../res/gfx/city_cinema_meeting.bin"
+.align 2
+GLABEL city_cinema_fall
+.incbin "../res/gfx/city_cinema_fall.bin"
+.align 2
+
+GLABEL city_boss_dialogue
+.incbin "../res/gfx/city_boss_dialogue.bin"
+.align 2

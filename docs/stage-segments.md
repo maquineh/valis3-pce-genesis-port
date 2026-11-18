@@ -1,9 +1,9 @@
 # The ten stage segments (decoded from the disc)
 
-**The disc enumerates the stages explicitly.**  Every 40-sector block of data
+**The disc enumerates the stages explicitly.** Every 40-sector block of data
 track 2 starts with a 16-byte CD frame header, a short parameter area and an
-ASCII stage label, followed by a VCE palette block and the stage's tile/map
-data.  The first parameter byte after the label is a sequence number `00..09`:
+ASCII stage label, followed by a VCE palette region and stage data. The first
+parameter byte after the label is a sequence number `00..09`:
 
 | seq | label | sector | file offset | palette | palette words |
 |---|---|---|---|---|---|
@@ -34,7 +34,7 @@ $0C58A2: 01 03 00 04 00 00 b0 10 06 1c be 00 00 20 00   <- parameters
 
 `tools/analyze_stages.py` prints the header parameters for every segment.
 
-## Overlay relocation model (verified)
+## CD reads and logical address mapping
 
 The System Card's `cd_exec` sites decode to:
 
@@ -46,30 +46,43 @@ The System Card's `cd_exec` sites decode to:
 | `$232D60` | 968 | `$4000` | 8 | `$22BD80-$230700` |
 | `$232D7F` | 1172 | `$4000` | 8 | `$2A0FC0-$2A5940` |
 
-The resident overlay (sector 32, logical `$4000` <- file `$12600`) holds the
-engine's core routines, which is proven by three independent call sites that
-only resolve to coherent code through this mapping:
+Raw data-track files retain 2352-byte sectors. A CD read exposes only the
+2048-byte user payload, so logical addresses cannot be mapped by adding the
+address delta to the first sector's file offset. For a read starting at sector
+`S`, logical base `B`, and address `A`, the raw file offset is:
 
-| logical | file | routine | evidence |
-|---|---|---|---|
-| `$8660` | `$16C60` | decompressor | `BSR $6C39; STA ($FA); INC $FA` 32x256 loop |
-| `$6C39` | `$15239` | entity update | indexed table reads `$2A16,X`, `$2D46,X` |
-| `$8CD9` | `$2353D9` | **palette upload** | `TIA $5093, $0404, $2000` / `TIA $9092, $0404, $2000` |
+```
+delta = A - B
+file  = (S + delta // 2048) * 2352 + 16 + delta % 2048
+```
 
-`$8CD9` is the routine the stage loader calls right before it clears VRAM, and
-it is the palette uploader: it writes the VCE colour index at `$0402/$0403`
-and streams whole palettes into the colour data port `$0404`.  `tools/logical_to_file.py`
-resolves any logical address with the verified formula.
+Use `tools/logical_to_file.py --range SECTOR COUNT LOGICAL_BASE` to strip those
+sector headers before disassembling. The old `$8660`/`$6C39`/`$8CD9` file
+offsets in this document came from extrapolating one read linearly across raw
+sectors; those routine labels are not supported by that mapping.
+
+## Stage-chunk graphics decoder
+
+The chunk loaded from sector 1000 has four sectors of user data at logical
+`$8000-$9FFF`. Its routine at logical `$9366` (raw file `$23F956`, sector 1002
+payload offset `$366`) is called by `$87E9` before the stage code uploads an
+8 KiB window from `$A000` to VRAM. The routine:
+
+* reads an 8-byte header from its CD stream;
+* uses header bytes 0-1 to advance the next stream offset by that value plus 8;
+* uses bytes 4-5 as the decoded byte count;
+* expands literal and back-reference tokens through a 4 KiB history buffer at
+  `$D000-$DFFF`, keeping the current 8 KiB output window at `$A000-$BFFF`;
+* returns to `$87E9`, which uploads `$2000` bytes from `$A000` to VRAM at the
+  word address held in `$3E07`.
+
+This identifies a tile-data decoder. It does not write the BAT, and its input
+has not yet been tied to the `+0x800` region of an `STG` block.
 
 ## What is still missing for stages 2-10
 
-The stage segments' **tile data is compressed** - the routine at logical `$8660`
-is an 8 KiB decompressor driven by `BSR $6C39`.  Rendering the raw block bytes
-as tiles produces dithered noise (`build/gfx/stg2a/contact.png`,
-`build/gfx/stages2/contact.png`), while the stage *maps* inside the blocks are
-plain `0x600`-sized BATs.  So the remaining work is:
-
-1. implement the decompressor at logical `$8660`/`$6C39` in Python,
-2. decompress each stage segment's tile block,
-3. render/verify each segment's map with its own palette,
-4. pack with `tools/pack_stage_all.py` and add `game/src/stageN.c` modules.
+The BAT for stages 2-10 is still not located. The decoder above is called
+before an 8 KiB tile upload; it is not evidence that raw BATs live inside the
+`STG` blocks. The `+0x800` region and object records remain candidates for
+further tracing, not decoded map data. The reliable porting path remains
+captured gameplay BAT/VRAM/CRAM until the BAT-generation routine is found.

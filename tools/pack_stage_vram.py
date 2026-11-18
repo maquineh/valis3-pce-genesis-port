@@ -49,7 +49,7 @@ def main():
                 t = 0
                 out_range += 1
             entry = (t & 0x7FF) | ((pal & 3) << 13)
-            maps += bytes([entry & 0xFF, (entry >> 8) & 0xFF])
+            maps += entry.to_bytes(2, "big")
     open("game/res/gfx/%s_maps.bin" % name, "wb").write(bytes(maps))
 
     out_pal = bytearray()
@@ -59,21 +59,14 @@ def main():
         r = (w >> 3) & 7
         g = (w >> 6) & 7
         m = (r << 1) | (g << 5) | (bl << 9)
-        out_pal += bytes([m & 0xFF, (m >> 8) & 0xFF])
+        out_pal += m.to_bytes(2, "big")
     open("game/res/gfx/%s_pal.bin" % name, "wb").write(bytes(out_pal))
 
     print("%s: %d screens, block %d tiles (%d bytes) at MD tile %d, maps %d bytes, %d out-of-range cells clamped"
           % (name, n, ntiles, len(tiles), base, len(maps), out_range))
 
 
-def md_tile(t32):
-    out = bytearray(32)
-    for r in range(8):
-        out[r * 4 + 0] = t32[r * 2]
-        out[r * 4 + 1] = t32[r * 2 + 1]
-        out[r * 4 + 2] = t32[16 + r * 2]
-        out[r * 4 + 3] = t32[16 + r * 2 + 1]
-    return bytes(out)
+from pce2md import pce_tile_to_md as md_tile
 
 
 if __name__ == "__main__":

@@ -3,18 +3,21 @@
 Verified layout (from the real Stage 2 save state and STG2A):
     +0x000  header ('STG1A'..'STG5A')
     +0x200  palette / colour tables (the live CRAM words appear from $264)
-    +0x800  compressed stream (BAT / tilemap)
+    +0x800  high-entropy region (runtime role not identified)
     +0xC00  Shift-JIS stage text
-    +0x1000 object/level records
+    +0x1000 variable stage data (record-like fields and, in some blocks, text)
     +0x6E40 raw 4bpp tile graphics (tile index 0x100 upward, 32 bytes/tile)
 Every block is exactly 40 user sectors (81920 bytes).
 
 Outputs (build/stg_extract/):
     <name>_header.bin, <name>_pal.bin, <name>_text.bin,
-    <name>_objects.bin, <name>_tiles.bin, manifest.json
+    <name>_objects.bin (raw, not decoded), <name>_tiles.bin, manifest.json
 
 The raw tiles of STG2A are cross-checked against the live VRAM dump taken
-from the user's Mednafen save state.
+from the user's Mednafen save state. The gameplay BAT has not been matched
+to the +0x800 or +0x1000 data; the stage-chunk decoder found so far writes
+tile bytes. The `_objects.bin` output is a raw slice, not a decoded record
+table; the source region varies between stages and can contain text.
 """
 import json
 import os

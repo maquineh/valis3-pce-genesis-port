@@ -1,19 +1,12 @@
 {
   "screens": 4,
+  "screen_rows": 28,
   "screen_cols": 32,
-  "screen_rows": 24,
-  "tiles": 46,
-  "tiles_bytes": 1472,
-  "maps_bytes": 6144,
+  "tiles": 83,
+  "tiles_bytes": 2656,
+  "maps_bytes": 7168,
   "pal_bytes": 128,
-  "pal_map": {
-    "15": 0,
-    "0": 1,
-    "14": 2,
-    "5": 3,
-    "6": 3,
-    "7": 3,
-    "8": 3
-  },
-  "source": "Mednafen state Stage 2 BAT/VRAM/CRAM"
+  "hud_rows": 5,
+  "source": "Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc0",
+  "enemy_source": "states/Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc1"
 }

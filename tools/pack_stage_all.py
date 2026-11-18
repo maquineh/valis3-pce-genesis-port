@@ -64,14 +64,14 @@ def main():
             pal = word >> 12
             pal_use[s].append(pal)
             entry = (remap.get(t, 0) & 0x7FF) | ((pal & 3) << 13)
-            maps += bytes([entry & 0xFF, (entry >> 8) & 0xFF])
+            maps += entry.to_bytes(2, "big")
     open("game/res/gfx/%s_maps.bin" % name, "wb").write(bytes(maps))
 
     out_pal = bytearray()
     for i in range(64):
         w = b[pal_off + i * 2] | (b[pal_off + i * 2 + 1] << 8)
         m = pce_color_to_md(w)
-        out_pal += bytes([m & 0xFF, (m >> 8) & 0xFF])
+        out_pal += m.to_bytes(2, "big")
     open("game/res/gfx/%s_pal.bin" % name, "wb").write(bytes(out_pal))
 
     json.dump({"screens": n, "first_map": hex(first), "tiles": len(order)},

@@ -72,42 +72,36 @@ static void draw_screen(u8 col, u8 s)
 static void stage_load(void)
 {
   /* stage art + palette */
-  bios_dma_xfer(
+  bios_dma_xfer_word_ram(
     to_vdp_addr(vram_addr_from_tileidx(0)),
     &res_stage1_all_tiles[0],
     (STAGE_TILES * 32) >> 1);
   bios_load_pal_update((Palette *)&res_stage1_all_pal[0]);
 
   /* player sprite tiles + a white palette line */
-  bios_dma_xfer(
+  bios_dma_xfer_word_ram(
     to_vdp_addr(vram_addr_from_tileidx(PLAYER_TILE)),
     &res_player_spr[0],
     (4 * 32) >> 1);
-  bios_palette[48] = 0x0EEE;
-  bios_palette[49] = 0x0EEE;
-  bios_palette[50] = 0x0EEE;
-  bios_vdp_update_flags |= BIOS_MASK_COPY_PALETTE;
+  /* This placeholder has no free sprite colors; keep its background palette. */
 
   /* plane A: clear, then draw the first two screens */
   bios_plane_fill(
     to_vdp_addr(BIOS_VDP_DEFAULT_PLANEA) | VRAM_W,
-    Width64, 32, 0);
+    63, 31, 0);
   screen_no = 0;
   cell_scroll = 0;
-  draw_screen(0, 0);
-  draw_screen(SCREEN_COLS, 1);
 
   /* plane B stays clear behind the stage */
   bios_plane_fill(
     to_vdp_addr(BIOS_VDP_DEFAULT_PLANEB) | VRAM_W,
-    Width64, 32, 0);
+    63, 31, 0);
 }
 
 static void stage_input(void)
 {
   u16 prev = cell_scroll;
 
-  bios_read_joypad();
   if (bios_joy1_hold & PAD_LEFT)  cell_scroll -= 1;
   if (bios_joy1_hold & PAD_RIGHT) cell_scroll += 1;
 
@@ -151,6 +145,8 @@ void main(void)
   bios_vdp_disp_disable();
   stage_load();
   bios_vdp_disp_enable();
+  draw_screen(0, 0);
+  draw_screen(SCREEN_COLS, 1);
 
   for (;;)
   {
