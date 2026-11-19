@@ -41,5 +41,24 @@ int main(void)
   e[0].alive=0;
   stage_combat_respawn(&c,e,8,40);
   if (c.game_over || c.hp != STAGE_PLAYER_HP || !e[0].alive || e[0].hp != 2) return 12;
+
+  /* A slide hits each enemy once, then a new slide can finish it. */
+  stage_combat_init(&c,e,40,40,32,60,120,40,110,140);
+  {
+    unsigned char mask = 0;
+    if (!stage_combat_slide_damage(&c,e,35,40,&mask)) return 15;
+    if (e[0].hp != 1 || !e[0].alive || mask != 1) return 16;
+    if (stage_combat_slide_damage(&c,e,35,40,&mask)) return 17;
+    mask = 0;
+    if (!stage_combat_slide_damage(&c,e,35,40,&mask)) return 18;
+    if (e[0].alive) return 19;
+  }
+
+  /* The lowered slide body ignores contact damage for its duration. */
+  stage_combat_init(&c,e,40,40,32,60,120,40,110,140);
+  stage_combat_step_pose(&c,e,0,35,40,8,40,0,1);
+  if (c.hp != STAGE_PLAYER_HP) return 20;
+  stage_combat_step_pose(&c,e,0,35,40,8,40,0,0);
+  if (c.hp != STAGE_PLAYER_HP - 1) return 21;
   return 0;
 }

@@ -29,18 +29,19 @@ static void stage_combat_init(StageCombat *c, StageEnemy *e,
   e[1].hp=2; e[1].alive=1; e[1].direction=1; e[1].hit_flash=0;
 }
 
-static unsigned char stage_combat_step_ex(StageCombat *c, StageEnemy *e,
+static unsigned char stage_combat_step_pose(StageCombat *c, StageEnemy *e,
                                         unsigned char attack,
                                         unsigned short px, unsigned short py,
                                         unsigned short spawn_x, unsigned short spawn_y,
-                                        unsigned char move_enemies)
+                                        unsigned char move_enemies,
+                                        unsigned char crouch)
 {
   unsigned char i, hit = 0;
   if (c->game_over) return 0;
   if (c->invulnerable) --c->invulnerable;
   if (c->attack_cooldown) --c->attack_cooldown;
   if (c->attack_flash) --c->attack_flash;
-  if (attack && !c->attack_cooldown && !c->game_over) {
+  if (attack && !crouch && !c->attack_cooldown && !c->game_over) {
     short edge = (short)px + (c->facing ? 30 : -18);
     c->attack_cooldown=18; c->attack_flash=7;
     for (i=0; i<STAGE_ENEMY_MAX; ++i) {
@@ -66,7 +67,7 @@ static unsigned char stage_combat_step_ex(StageCombat *c, StageEnemy *e,
       if (e[i].x >= e[i].right) { e[i].x=e[i].right; e[i].direction=0; }
     }
     ex=e[i].x;
-    if (!c->invulnerable && py < e[i].y+16 && py+16 > e[i].y &&
+    if (!crouch && !c->invulnerable && py < e[i].y+16 && py+16 > e[i].y &&
         (short)px < ex+16 && (short)px+16 > ex) {
       if (c->hp) --c->hp;
       c->invulnerable=60;
@@ -74,6 +75,37 @@ static unsigned char stage_combat_step_ex(StageCombat *c, StageEnemy *e,
     }
   }
   (void)spawn_x; (void)spawn_y;
+  return hit;
+}
+
+static unsigned char stage_combat_step_ex(StageCombat *c, StageEnemy *e,
+                                        unsigned char attack,
+                                        unsigned short px, unsigned short py,
+                                        unsigned short spawn_x, unsigned short spawn_y,
+                                        unsigned char move_enemies)
+{
+  return stage_combat_step_pose(c, e, attack, px, py, spawn_x, spawn_y,
+                                move_enemies, 0);
+}
+
+/* A sliding body hits each enemy at most once per slide. */
+static unsigned char stage_combat_slide_damage(StageCombat *c, StageEnemy *e,
+                                               unsigned short px, unsigned short py,
+                                               unsigned char *hit_mask)
+{
+  unsigned char i, hit = 0;
+  for (i=0; i<STAGE_ENEMY_MAX; ++i) {
+    if (!e[i].alive || (*hit_mask & (1u << i))) continue;
+    if (py + 8 < e[i].y + 16 && py + 16 > e[i].y &&
+        (short)px - 4 < e[i].x + 16 && (short)px + 20 > e[i].x) {
+      if (e[i].hp) --e[i].hp;
+      e[i].hit_flash=6;
+      if (!e[i].hp) e[i].alive=0;
+      *hit_mask |= (unsigned char)(1u << i);
+      hit=1;
+    }
+  }
+  (void)c;
   return hit;
 }
 

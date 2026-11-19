@@ -1,9 +1,9 @@
 /* STG2B forest encounter from the PCE save. */
-#define STAGE_SCREENS 1
-#define STAGE_TILES 216
+#define STAGE_SCREENS 2
+#define STAGE_TILES 221
 #define LEGACY_COAST 0
 #define WORLD_WIDTH 512
-#define SPAWN_X 280
+#define SPAWN_X 32
 #define SPAWN_Y 128
 #define ROOM_FLOOR 144
 #define FLOOR_LEFT 0

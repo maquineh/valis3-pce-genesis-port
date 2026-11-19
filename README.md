@@ -3,6 +3,28 @@
 Port of **Valis III** (PC Engine CD-ROM², `Valis_3_(NTSC-J)_[TJCD0009]`,
 Telenet/Laser Soft, 1990) to the **Sega Mega CD**.
 
+## Play the first act
+
+Open `dist/valis3_mcd.cue` with its ISO and sibling WAV files. START on CITY
+plays the Japanese PC Engine prologue and Cham's opening, then hands control
+to Yuko on the Mega Drive street. Cross the rooftops, hear the original boss
+conversation, and defeat the cloaked boss to see the PC Engine rescue and
+enter the playable STG2A coast. The coast, seaside room, forest and blue
+dungeon use the original PCE music and the extracted PCM sword, jump, hit and
+magic effects. The dungeon now ends with the captured blue-knight boss before
+the ice castle; the same boss is also selectable directly (one LEFT from CITY).
+The item icons in the city are the original PCE HUD motifs, not generated
+placeholders.
+START skips the opening or rescue movie. During city gameplay it saves and
+returns to the title. B jumps, A or C swings the sword, and DOWN + B performs
+the slide in every phase-2 room and in the dungeon boss arena. CONTINUE loads
+the gameplay checkpoint.
+
+The [city and cinematic notes](docs/city-continuation.md) cover the source
+tracks, capture timing, hardware conversion and controller-only playthrough.
+The [Stage 2 comparison](docs/stage2-comparison.md) lists the PCE blocks,
+captured enemies and the remaining differences room by room.
+
 ## Honest status
 
 | Piece | State |
@@ -14,12 +36,18 @@ Telenet/Laser Soft, 1990) to the **Sega Mega CD**.
 | Mega CD build toolchain (megadev + m68k gcc + mkisofs) | ⚠️ `tools/build_megacd.ps1` requires a working Docker daemon and a locally available `megacd-build` image |
 | Mega CD ISO and CD-DA disc builder | ⚠️ Build scripts provided; run `tools/verify_all.py` to check the artifacts available locally |
 | Original soundtrack as CD-DA + `.cue` | ⚠️ Disc builder provided; the soundtrack files and final disc must be present locally |
+| Original PCM effects (sword, jump, hit, magic) | ✅ Packed from the commercial PCE/Genesis captures; `tools/test_city_sfx.py` finds both banks in PCM RAM |
+| Original PCE HUD item icons | ✅ `tools/pack_pce_icons.py`; captured CRAM remains unchanged |
+| Phase 2 chain (coast → seaside → forest → dungeon → boss → ice castle) | ✅ Normal route starts on screen 0 and visits all 4 coast/dungeon + 2 seaside/forest screens before the boss; music, effects and exits; `tools/test_stage_combat_integration.py` passes |
+| Stage 2 slide (DOWN + B) | ✅ 18 frames at 3 px/frame in every phase-2 room and the boss; lowered body ignores contact and deals one hit per enemy; `tools/test_stage_slide_integration.py` and `tools/test_stage_physics_integration.py` pass |
+| Stage 2 PCE comparison | ✅ Room/asset table and remaining gaps in `docs/stage2-comparison.md` |
+| STG2C dungeon boss | ✅ Reached from STAGE2C and selectable as scene 11; captured knight pair + fireballs, 16 HP, voice then boss music; `tools/test_stage2_boss_integration.py` passes |
 | Title screen | ✅ Original PC Engine logo and menu captures combined with an interactive selector; CONTINUE restores the last saved prototype scene (`docs/title-capture.md`) |
 | HuC6280 CPU core + VDC/VCE + CD BIOS shim | ✅ `tools/test_cpu.py` (16/16 PASS) |
 | **Real System Card v3.0 boot (unshimmed)** | ✅ New Game reaches and executes track-20 `ACT0`; the extended run stops at `$20D8` on opcode `$0B` before any `STG` read. See `docs/bios-boot-progress.md` for verified sector ranges. |
 | **Ten selectable scenes** | Captures cover six STG blocks. The sanctuary and alternate graveyard support horizontal exploration and checkpoints (`docs/stage-status.md`) |
 | **Stages 3B, 4B, 4C, 5A** | Gameplay captures are still needed |
-| Stage 1 module | ⚠️ present, but its graphics are an **unverified placeholder** with the wrong tile base (`docs/stage-1-correction.md`) |
+| Stage 1 module | Playable Mega Drive city through the boss, with PCE opening, encounter dialogue, rescue and STG2A handoff |
 
 **The objective — a port with all ten stages — is not met.** What is
 provided in source are an interactive menu built from original captures and

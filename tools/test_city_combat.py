@@ -46,12 +46,12 @@ def main():
         if f==previous:return b in keys
         previous=f
         keys.clear()
-        if 600<=f<604 or 2250<=f<2254:keys.add(3)
+        if 600<=f<604 or 2250<=f<2254 or 2420<=f<2424:keys.add(3)
         if f<2350:return b in keys
         ram=ct.string_at(core.retro_get_memory_data(2),65536)
         word=lambda n:struct.unpack_from('<H',ram,n)[0]
         byte=lambda k:ram[offs[k]^1]
-        if ram[0xf501]!=2:return False
+        if ram[0xf501]!=2:return b in keys
         room=word(offs['room'])
         if room<2:keys.add(7)
         if room!=3:return b in keys

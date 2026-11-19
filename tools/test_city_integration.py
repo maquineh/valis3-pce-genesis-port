@@ -38,6 +38,8 @@ def main():
     transition_deltas=[]
     previous_screen=None
     previous_room=None
+    chapters = []
+    city_ready = False
     room_age=0
     brown_dead=set()
     hold_until=0
@@ -46,7 +48,7 @@ def main():
         asset=(Path(__file__).resolve().parents[1]/'game/res/gfx'/('city_'+name+'.bin')).read_bytes()
         palettes.append(struct.unpack_from('>64H',asset,6))
     def event(events,f,button):
-        nonlocal last,keys,jumped,previous_room,previous_screen,hold_until,room_age
+        nonlocal last,keys,jumped,previous_room,previous_screen,hold_until,room_age,city_ready
         if f==last:return button in keys
         last=f
         keys=set()
@@ -56,9 +58,15 @@ def main():
             word=lambda o:struct.unpack_from('<H',data,o)[0]
             byte=lambda o:data[o^1]
             scene=data[0xf501]
+            if 13 <= scene <= 19 and (not chapters or chapters[-1][1] != scene):
+                chapters.append((f, scene))
             if scene==3 and rooms and rooms[-1]!=6:rooms.append(6)
             if scene==2:
                 r,x,y=(word(offsets[k]) for k in ('room','xpos','feet'))
+                if not city_ready:
+                    city_ready = (r, x, y) == (0, 32, 192)
+                    if not city_ready:
+                        return button in keys
                 if not rooms or rooms[-1]!=r:rooms.append(r)
                 cam=struct.unpack_from('<h',data,offsets['camera'])[0]
                 screen=x-cam
@@ -128,23 +136,23 @@ def main():
                     bx=word(offsets['boss_x']);by=word(offsets['boss_feet']);bh=byte(offsets['boss_hp'])
                     foes=[(bx,by,bh)]
                     # Stay across the arena and send charged sword waves.
-                    target=bx-34 if bx>=128 else bx+34
-                    if x<target:keys.add(7)
-                    elif x>target+6:keys.add(6)
-                    else:
-                        if bx>x:keys.add(7)
-                        else:keys.add(6)
-                    if f%18<2:keys.add(8)
-                    if by<145 and f%50<2:keys.add(0)
+                    target=bx-43 if x<bx else bx+43
+                    if x<target-2:keys.add(7)
+                    elif x>target+2:keys.add(6)
+                    elif byte(offsets['facing'])!=int(bx>x):keys.add(7 if bx>x else 6)
+                    if abs(x-bx)<67 and byte(offsets['facing'])==int(bx>x) and f%48<2:
+                        keys.add(8)
                 if f%20==0:trace.append((f,r,x,y,foes,byte(offsets['hp'])))
         return button in keys
     harness.event_pressed=event
     sys.argv=['game','--core',str(args.core),'--system',str(args.system),'--cue',str(args.cue),
-              '--frames','16000','--script-only','--output',str(args.output),'--no-audio-file']
-    for f in range(2350,16000,200):sys.argv+=['--capture',str(f)]
+              '--frames','45000','--script-only','--output',str(args.output),'--no-audio-file']
+    for f in range(2350,45000,300):sys.argv+=['--capture',str(f)]
     harness.main()
     (args.output/'play.json').write_text(json.dumps(trace))
     (args.output/'visual-checks.json').write_text(json.dumps(dict(scroll_rooms=sorted(scroll_checks),roof_seam_deltas=transition_deltas,scroll_failures=scroll_failures)))
+    (args.output/'story.json').write_text(json.dumps(chapters))
+    assert [chapter for _,chapter in chapters]==list(range(13,20)), chapters
     print('rooms',rooms,'defeated',sorted(victories),'cleared gap',jumped,flush=True)
     assert rooms==[0,1,2,3,4,5,6] and victories=={0,1} and jumped
     assert palette_checks=={0,1,2,3,4,5}, ('hardware palettes',palette_checks)

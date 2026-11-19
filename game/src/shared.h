@@ -16,6 +16,12 @@
 #define FILE_STAGE4A_MMD 10
 #define FILE_STAGE1A_MMD 11
 #define FILE_STAGE4A_ALT_MMD 12
+#define FILE_STAGE2_BOSS_MMD 20
+
+/* Story modules follow the existing save IDs. Only gameplay scenes go in BRAM. */
+#define FILE_STORY_FIRST 13
+#define FILE_STORY_LAST 19
+#define STORY_OFFSET 0x2000
 
 /* Stage 1 cinematic ticks stored in the existing v2 position fields. */
 #define CITY_MOVIE_MEETING 12288
@@ -30,6 +36,15 @@
 #define CMD_WRITE_POSITION 6
 #define CMD_REPEAT_CDDA 7
 #define CMD_CHAM_VOICE 8
+#define CMD_PLAY_ONCE 9
+#define CMD_STORY_REFILL 10
+#define CMD_PLAY_SFX 11
+
+#define CITY_SFX_SWORD 0
+#define CITY_SFX_JUMP 1
+#define CITY_SFX_HIT 2
+#define CITY_SFX_MAGIC 3
+#define CITY_SFX_ITEM CITY_SFX_MAGIC
 
 /* Main CPU's otherwise unused command words carry transient module state. */
 #define SCENE_RESUME_MARKER 0x5633

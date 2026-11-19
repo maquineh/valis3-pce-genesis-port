@@ -21,8 +21,13 @@ StagePhysics stage_player;
 static StageCombat stage_combat;
 static StageEnemy stage_enemies[STAGE_ENEMY_MAX];
 static u16 room_left, original_floor;
-static u8 walk_tick, enemy_tick, displayed_hp;
+static u8 walk_tick, enemy_tick, displayed_hp, screen_no, displayed_screen;
 static u16 plane_map[32 * 28];
+
+static const u16 *screen_map(void)
+{
+  return room_map + (u16)screen_no * 32 * 28;
+}
 
 static void encounter_init(void)
 {
@@ -48,31 +53,63 @@ static void room_input(void)
     if (stage_combat.death_timer) { --stage_combat.death_timer; return; }
     stage_player = (StagePhysics){SPAWN_X, SPAWN_Y, 0, 0};
     encounter_init();
+    screen_no = (u8)(room_left >> 8);
     stage_combat.invulnerable = 60;
   }
-  StageSurface floor = {room_left + FLOOR_LEFT, room_left + 255, original_floor, original_floor};
-  StageSolid ground = {floor.x1, original_floor, room_left + 256, original_floor + 48};
+  StageSurface floor = {FLOOR_LEFT, WORLD_WIDTH - 1, original_floor, original_floor};
+  StageSolid ground = {floor.x1, original_floor, WORLD_WIDTH, original_floor + 48};
   u16 pad = bios_joy1_hold;
+  u8 attack = bios_joy1_hit & (PAD_A | PAD_C);
+  u8 old_hp = stage_combat.hp;
   stage_combat_face(&stage_combat, pad & PAD_LEFT, pad & PAD_RIGHT);
-  stage_physics_step(&stage_player, &floor, 1, &ground, 1, room_left + 256,
-                     (pad & PAD_LEFT) && stage_player.x > room_left, pad & PAD_RIGHT,
+  u8 slide_started = 0;
+  if (!stage_player.slide_timer && (pad & PAD_DOWN) &&
+      (bios_joy1_hit & PAD_B) && stage_player.grounded) {
+    stage_slide_start(&stage_player, stage_combat.facing);
+    slide_started = 1;
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_JUMP);
+  }
+  u8 jumped = !slide_started && (bios_joy1_hit & PAD_B) && stage_player.grounded;
+  stage_physics_step(&stage_player, &floor, 1, &ground, 1, WORLD_WIDTH,
+                     (pad & PAD_LEFT) && stage_player.x > 0, pad & PAD_RIGHT,
                      bios_joy1_hit & PAD_B, SPAWN_X, SPAWN_Y);
-  if ((stage_player.x & 0xff00) != room_left) encounter_init();
+  if (jumped) engine_audio_command(CMD_PLAY_SFX, CITY_SFX_JUMP);
+  if ((stage_player.x & 0xff00) != room_left) {
+    encounter_init();
+    screen_no = (u8)(room_left >> 8);
+  }
   if (pad & (PAD_LEFT | PAD_RIGHT)) ++walk_tick;
   else walk_tick = 0;
   ++enemy_tick;
-  stage_combat_step_ex(&stage_combat, stage_enemies, bios_joy1_hit & (PAD_A | PAD_C),
-                       stage_player.x, stage_player.y, SPAWN_X, SPAWN_Y,
-                       (enemy_tick & PATROL_MASK) == 0);
+  u8 hit = stage_combat_step_pose(&stage_combat, stage_enemies,
+                                attack && !stage_player.slide_timer,
+                                stage_player.x, stage_player.y, SPAWN_X, SPAWN_Y,
+                                (enemy_tick & PATROL_MASK) == 0,
+                                stage_player.slide_timer != 0);
+  if (stage_player.slide_timer && stage_combat_slide_damage(
+        &stage_combat, stage_enemies, stage_player.x, stage_player.y,
+        &stage_player.slide_hit)) hit = 1;
+  if (attack && !stage_player.slide_timer)
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_SWORD);
+  if (hit || stage_combat.hp < old_hp)
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_HIT);
 }
 
 static void room_draw(void)
 {
-  u8 frame = stage_combat.attack_flash ? 3 : walk_tick ? 1 + ((walk_tick >> 3) & 1) : 0;
+  u8 sliding = stage_player.slide_timer != 0;
+  u8 frame = sliding ? 3 : stage_combat.attack_flash ? 3 : walk_tick ? 1 + ((walk_tick >> 3) & 1) : 0;
   u8 flip = !stage_combat.facing;
+  if (screen_no != displayed_screen) {
+    const u16 *source = screen_map();
+    for (u16 i = 0; i < 32 * 28; ++i) plane_map[i] = source[i];
+    bios_load_map(to_vdp_addr(BIOS_VDP_DEFAULT_PLANEA) | VRAM_W, 31, 27, plane_map);
+    displayed_screen = screen_no;
+    displayed_hp = 255;
+  }
   s16 dy = DISPLAY_FLOOR - (s16)original_floor;
   draw_actor(0, STAGE_TILES + 48 * frame, (s16)(stage_player.x - room_left) - (flip ? 40 : 8),
-             stage_player.y + dy - 32, 64, 48, 3, flip,
+             stage_player.y + dy - (sliding ? 24 : 32), 64, 48, 3, flip,
              !stage_combat.game_over && !(stage_combat.invulnerable & 4), 7);
   StageEnemy *e = &stage_enemies[0];
 #if LEGACY_COAST
@@ -88,7 +125,7 @@ static void room_draw(void)
   bios_copy_sprlist();
   if (displayed_hp != stage_combat.hp) {
     for (u8 i = 0; i < 12; ++i)
-      plane_map[32 + 4 + i] = i < 4 * stage_combat.hp ? room_map[32 + 4 + i] : 0;
+      plane_map[32 + 4 + i] = i < 4 * stage_combat.hp ? screen_map()[32 + 4 + i] : 0;
     bios_load_map(to_vdp_addr(BIOS_VDP_DEFAULT_PLANEA + VDP_PLANE_POS(0, 1, Width64)) | VRAM_W,
                   31, 0, &plane_map[32]);
     displayed_hp = stage_combat.hp;
@@ -109,14 +146,18 @@ void main(void)
   bios_load_pal_update((Palette *)room_palette);
   bios_plane_fill(to_vdp_addr(BIOS_VDP_DEFAULT_PLANEA) | VRAM_W, 63, 31, 0);
   bios_plane_fill(to_vdp_addr(BIOS_VDP_DEFAULT_PLANEB) | VRAM_W, 63, 31, 0);
+  screen_no = displayed_screen = 0;
   for (u16 i = 0; i < 32 * 28; ++i) plane_map[i] = room_map[i];
   u16 scroll[2] = {0, 0};
   bios_dma_xfer(to_vdp_addr(BIOS_VDP_DEFAULT_HSCROLL), (u8 *)scroll, 2);
   stage_player = (StagePhysics){SPAWN_X, SPAWN_Y, 0, 0};
+  engine_repeat_cdda(24); /* Coast, original PCE track 40. */
   engine_resume_position(SCENE_ID, &stage_player.x, &stage_player.y);
   if (stage_player.x > WORLD_WIDTH - 16 || stage_player.y > 176)
     stage_player = (StagePhysics){SPAWN_X, SPAWN_Y, 0, 0};
   encounter_init();
+  screen_no = displayed_screen = (u8)(room_left >> 8);
+  for (u16 i = 0; i < 32 * 28; ++i) plane_map[i] = screen_map()[i];
   displayed_hp = 255;
   bios_vdp_disp_enable();
   bios_vblank_wait_default();
@@ -125,7 +166,7 @@ void main(void)
     bios_vblank_wait_default();
     room_input();
     room_draw();
-    if (stage_combat_exit_ready(stage_enemies, stage_player.x, room_left + 232)) {
+    if (stage_combat_exit_ready(stage_enemies, stage_player.x, WORLD_WIDTH - 24)) {
       engine_transition_scene(NEXT_SCENE, NEXT_SCENE, NEXT_X, NEXT_Y, &next_module);
       return;
     }

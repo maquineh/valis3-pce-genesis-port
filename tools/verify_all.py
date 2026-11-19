@@ -97,6 +97,7 @@ def main():
               "stage2a2_state_tiles", "stage2a2_state_maps", "stage2a2_state_pal",
               "stage1a_state_tiles", "stage1a_state_maps", "stage1a_state_pal",
               "stage4a_state_tiles", "stage4a_state_maps", "stage4a_state_pal",
+              "stage2_boss_tiles", "stage2_boss_fire_tiles", "city_items",
               "player_spr"):
         p = "game/res/gfx/%s.bin" % f
         line(os.path.isfile(p), p, "%d bytes" % os.path.getsize(p) if os.path.isfile(p) else "")
@@ -143,6 +144,13 @@ def main():
          "game/src/stage2c_b_state.c (real Stage 2C corridor snapshot module)")
     line(os.path.isfile("game/src/stage2a2_state.c"),
          "game/src/stage2a2_state.c (real Stage 2A seaside snapshot module)")
+    line(os.path.isfile("game/src/stage2boss_state.c") and
+         os.path.isfile("game/res/gfx/stage2_boss_tiles.bin"),
+         "game/src/stage2boss_state.c (captured STG2C boss module)")
+    line(os.path.isfile("game/res/audio/city_sfx.bin"),
+         "game/res/audio/city_sfx.bin (original PCM effects)")
+    line(os.path.isfile("game/res/gfx/city_items.bin"),
+         "game/res/gfx/city_items.bin (original HUD item icons)")
     print("== 4b. Stage modules match their packed resources ==")
     for name, src in (("stage1a_state", "game/src/stage1a_state.c"),
                       ("stage4a_state", "game/src/stage4a_state.c"),
@@ -245,7 +253,8 @@ def main():
             line(False, "ISO9660 primary volume and root directory valid", str(exc))
         for name in ("IPX.MMD", "GAME.MMD", "STAGE1.MMD", "STAGE2.MMD",
                      "STAGE2B.MMD", "STAGE3A.MMD", "STAGE2C.MMD",
-                     "STAGE2CG.MMD", "STAGE2CB.MMD", "STAGE2A2.MMD", "STAGE1A.MMD", "STAGE4A.MMD", "STAGE4AX.MMD", "SPX.SMD"):
+                     "STAGE2CG.MMD", "STAGE2CB.MMD", "STAGE2A2.MMD", "STAGE1A.MMD", "STAGE4A.MMD", "STAGE4AX.MMD",
+                     "STG2BOSS.MMD", "SPX.SMD"):
             line(files.get(name, False), "ISO root contains nonempty %s" % name)
 
     print("== 5. Final disc with the original soundtrack ==")

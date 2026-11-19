@@ -48,6 +48,7 @@ all: \
 	$(DISC_PATH)/stage4ax.mmd \
 	$(DISC_PATH)/stage4a.mmd \
 	$(DISC_PATH)/stage2a2.mmd \
+	$(DISC_PATH)/stg2boss.mmd \
 	$(PROJECT_ID).iso
 
 ## ISO generation must wait for every module, including on parallel builds.
@@ -66,7 +67,8 @@ $(PROJECT_ID).iso: \
 	$(DISC_PATH)/stage1a.mmd \
 	$(DISC_PATH)/stage4ax.mmd \
 	$(DISC_PATH)/stage4a.mmd \
-	$(DISC_PATH)/stage2a2.mmd
+	$(DISC_PATH)/stage2a2.mmd \
+	$(DISC_PATH)/stg2boss.mmd
 
 clean:
 	@rm -f $(PROJECT_ID).iso $(DISC_PATH)/*.mmd $(DISC_PATH)/*.smd $(BUILD_PATH)/* > /dev/null 2>&1
@@ -85,6 +87,7 @@ $(DISC_PATH)/spx.smd: \
 	spx_layout.s \
 	std_init.s \
 	cham_voice_res.s \
+	city_sfx_res.s \
 	spx.c \
 	$(BUILD_PATH)/sp.bin
 
@@ -102,6 +105,7 @@ $(DISC_PATH)/stage1.mmd: \
 	std_init.s \
 	city.c \
 	city_res.s \
+	city_items_res.s \
 	$(DISC_PATH)/ipx.mmd
 
 ## Stage 2: real save-state BAT/VRAM/CRAM snapshot
@@ -181,3 +185,32 @@ $(DISC_PATH)/stage4ax.mmd: \
 	stage4a_state.c \
 	stage4a_state_res.s \
 	$(DISC_PATH)/ipx.mmd
+
+## STG2C dungeon boss; the corridor and captured player resources are shared.
+$(DISC_PATH)/stg2boss.mmd: \
+	shared_mmd_layout.s \
+	std_init.s \
+	stage2boss_state.c \
+	stage2boss_res.s \
+	stage2c_b_state_res.s \
+	stage2_state_res.s \
+	$(DISC_PATH)/ipx.mmd
+
+# Each movie shares one RAM-resident player. The first 8 KiB contain its MMD
+# header and code. Larger chapters cache their remaining records on the Sub CPU.
+STORY_NUMBERS := 06 07 08 09 10 11 12
+STORY_MODULES := $(foreach n,$(STORY_NUMBERS),$(DISC_PATH)/story$(n).mmd)
+STORY_EXT := $(patsubst $(RES_PATH)/gfx/%,$(DISC_PATH)/%,$(wildcard $(RES_PATH)/gfx/story*.ext))
+
+.PHONY: story
+story: $(STORY_MODULES) $(STORY_EXT)
+$(PROJECT_ID).iso: $(STORY_MODULES) $(STORY_EXT)
+
+$(BUILD_PATH)/player.mmd: story_layout.s std_init.s story.c $(DISC_PATH)/ipx.mmd
+
+$(STORY_MODULES): $(DISC_PATH)/story%.mmd: $(BUILD_PATH)/player.mmd $(RES_PATH)/gfx/story%.bin
+	@dd if=$< of=$@ bs=8192 conv=sync status=none
+	@cat $(word 2,$^) >> $@
+
+$(DISC_PATH)/story%.ext: $(RES_PATH)/gfx/story%.ext
+	@cp $< $@

@@ -63,7 +63,7 @@ static u8 const scene_modules[] = {
   FILE_STAGE2_MMD, FILE_STAGE2A2_MMD, FILE_STAGE2B_MMD,
   FILE_STAGE2C_MMD, FILE_STAGE3A_MMD, FILE_STAGE2C_GREEN_MMD,
   FILE_STAGE2C_B_MMD, FILE_STAGE4A_MMD, FILE_STAGE1A_MMD, FILE_STAGE4A_ALT_MMD,
-  FILE_STAGE1_MMD
+  FILE_STAGE2_BOSS_MMD, FILE_STAGE1_MMD
 };
 
 static u16 scene_command(u16 command, u16 value)
@@ -249,8 +249,9 @@ void main(void)
         scene_index = scene_index == 0 ? sizeof(scene_modules) - 1 : scene_index - 1;
       if ((hit & PAD_RIGHT) && !(hit & PAD_LEFT))
         scene_index = scene_index + 1 == sizeof(scene_modules) ? 0 : scene_index + 1;
-      if (scene_index == 9) {
-        scene_label[6] = '1'; scene_label[7] = '0'; scene_label[8] = '>';
+      if (scene_index == 9 || scene_index == 10) {
+        scene_label[6] = '1'; scene_label[7] = '0' + (scene_index - 9);
+        scene_label[8] = '>';
       } else {
         scene_label[6] = '1' + scene_index; scene_label[7] = '>'; scene_label[8] = ' ';
       }
@@ -275,7 +276,7 @@ void main(void)
       }
       *ga_reg_comcmd4 = selection ? SCENE_RESUME_MARKER : 0;
       engine_stop_cdda();
-      next_module = (u8)target;
+      next_module = !selection && target == FILE_STAGE1_MMD ? FILE_STORY_FIRST : (u8)target;
       return;
     }
   }

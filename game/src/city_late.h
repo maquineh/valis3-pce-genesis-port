@@ -1,6 +1,8 @@
 /* Native cartridge graphics; encounter timing, hit boxes and AI are approximated.
  * Positions here are local to the continuation (source roof x=512) or arena. */
 static void draw_pose(u8 pose, s16 x, s16 y, u8 flip);
+static void draw_fire_thrower(u8 pose, s16 x, s16 y, u8 flip);
+static u16 ground_at(s16 x);
 typedef struct {
   s16 x, foot, left, right, speed;
   u8 kind, hp, tick, flash;
@@ -13,6 +15,8 @@ static u16 boss_tick,boss_clear;
 static u8 boss_hp,boss_flash,boss_meter,boss_phase;
 
 extern const u16 city_boss_dialogue[];
+/* Seventeen seconds of Japanese dialogue on the full-disc encounter track. */
+#define BOSS_VOICE_TICKS 1022
 static u16 boss_intro_tick;
 static u8 boss_page;
 
@@ -33,7 +37,8 @@ static void boss_introduction(void)
   } else {
     walking=0; facing=0;
   }
-  u8 page=boss_intro_tick<206 ? 0 : boss_intro_tick<296 ? 1 : boss_intro_tick<386 ? 2 : boss_intro_tick<476 ? 3 : 0;
+  u8 page=boss_intro_tick<196 ? 0 : boss_intro_tick<510 ? 1 : boss_intro_tick<720 ? 2 : boss_intro_tick<BOSS_VOICE_TICKS ? 3 : 0;
+  if (boss_intro_tick==BOSS_VOICE_TICKS) engine_repeat_cdda(27); /* PCE 43 */
   if (page!=boss_page) {
     if (page) {
       const u16 *cells=city_boss_dialogue+1+16*city_boss_dialogue[0]+320*(page-1);
@@ -62,7 +67,8 @@ static void late_reset(void)
 static void late_shoot(s16 x,s16 y,s16 dx,s16 dy)
 {
   for(u8 i=0;i<4;++i) if(!late_shots[i].life) {
-    late_shots[i]=(CityShot){x,y,dx,dy,100};return;
+    late_shots[i]=(CityShot){x,y,dx,dy,100};
+    return;
   }
 }
 
@@ -87,16 +93,26 @@ static void late_step(void)
       if(!e->hp || e->x>(s16)xpos+152 || e->x<(s16)xpos-180)continue;
       ++e->tick;
       if(e->kind==1) {
-        if(e->tick==80)late_shoot(e->x,e->foot-36,e->x>(s16)xpos?-2:2,0);
+        if(e->tick==78)e->speed=e->x>(s16)xpos ? -1 : 1;
+        if(e->tick==80)late_shoot(e->x+12*e->speed,e->foot-36,2*e->speed,0);
         if(e->tick>=120)e->tick=0;
       } else {
-        e->x+=e->speed;
-        if(e->x<=e->left)e->speed=1;
-        if(e->x>=e->right)e->speed=-1;
+        s16 next=e->x+e->speed;
+        if(e->kind==0 && (ground_at(next-6)!=e->foot || ground_at(next+6)!=e->foot)) {
+          e->speed=-e->speed;
+        } else {
+          e->x=next;
+          if(e->x<=e->left)e->speed=1;
+          if(e->x>=e->right)e->speed=-1;
+        }
       }
       s16 foot=e->foot;
       if(e->kind==2)foot+=(e->tick&32)?(e->tick&31)/2:15-(e->tick&31)/2;
-      if(!e->flash && sword_hits(e->x,foot)) {--e->hp;e->flash=20;}
+      u8 damage=sword_damage(e->x,foot);
+      if(!e->flash && damage) {
+        e->hp=remaining_hp(e->hp,damage); e->flash=20;
+        engine_audio_command(CMD_PLAY_SFX,CITY_SFX_HIT);
+      }
       s16 dx=e->x-(s16)xpos,dy=foot-(s16)feet;
       if(e->hp && !e->flash && dx>-19 && dx<19 && dy>-36 && dy<22)hit_player(e->x);
     }
@@ -126,7 +142,11 @@ static void late_step(void)
     boss_feet=176;
     if(phase==210)late_shoot(boss_x,140,boss_x>(s16)xpos?-2:2,1);
   }
-  if(!boss_flash && sword_hits(boss_x,boss_feet)) {--boss_hp;boss_flash=24;}
+  u8 damage=sword_damage(boss_x,boss_feet);
+  if(!boss_flash && damage) {
+    boss_hp=remaining_hp(boss_hp,damage); boss_flash=24;
+    engine_audio_command(CMD_PLAY_SFX,CITY_SFX_HIT);
+  }
   s16 dx=boss_x-(s16)xpos,dy=boss_feet-(s16)feet;
   if(!boss_flash && dx>-27 && dx<27 && dy>-52 && dy<26)hit_player(boss_x);
 }
@@ -139,7 +159,11 @@ static void late_draw(void)
       CityFoe *e=&late_foes[i];
       s16 foot=e->foot;
       if(e->kind==2)foot+=(e->tick&32)?(e->tick&31)/2:15-(e->tick&31)/2;
-      if(e->hp && !(e->flash&2))draw_pose(e->kind==1?(e->tick>=78&&e->tick<100?20:19):e->kind==2?22:12,e->x-camera,foot,e->speed>0);
+      if(e->hp && !(e->flash&2)) {
+        if (e->kind==1) draw_fire_thrower(e->tick>=78 && e->tick<100 ? 20 : 19,
+                                         e->x-camera,foot,e->speed>0);
+        else draw_pose(e->kind==2 ? 22 : 12,e->x-camera,foot,e->speed>0);
+      }
       if(e->flash)draw_hit(e->x-camera,foot,e->flash);
     }
   } else {
@@ -157,6 +181,7 @@ static void late_draw(void)
   }
   for(u8 i=0;i<4;++i) {
     CityShot *p=&late_shots[i];
-    if(p->life)draw_pose(room==BOSS?28:21,p->x-camera,p->y, p->dx>0);
+    if(p->life)draw_pose(room==BOSS?28:21,p->x-camera,
+                         p->y+(room==BOSS ? 0 : 12),p->dx>0);
   }
 }

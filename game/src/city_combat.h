@@ -3,7 +3,7 @@ extern const u16 city_combat[];
 static const u16 *combat_poses, *charge_cells;
 static s16 wave_x, wave_feet;
 static s8 recoil;
-static u8 hurt, charge, last_charge, wave_life, wave_left;
+static u8 hurt, charge, last_charge, wave_life, wave_left, wave_damage;
 static void draw_pose_table(const u16 *table, u8 pose, s16 x, s16 y, u8 flip);
 
 static void load_combat(void)
@@ -40,6 +40,22 @@ static void hit_player(s16 enemy_x)
   recoil = enemy_x < (s16)xpos ? 2 : -2;
   facing = recoil < 0;
   attack = attack_buffer = jump_buffer = 0;
+  engine_audio_command(CMD_PLAY_SFX,CITY_SFX_HIT);
+}
+
+static void start_wave(u8 life, u8 damage)
+{
+  wave_left = !facing;
+  wave_x = (s16)xpos + (wave_left ? 2 : -2);
+  wave_feet = feet;
+  wave_life = life;
+  wave_damage = damage;
+}
+
+static void cast_city_magic(void)
+{
+  start_wave(16,3+strength);
+  engine_audio_command(CMD_PLAY_SFX,CITY_SFX_MAGIC);
 }
 
 static void step_sword(void)
@@ -49,26 +65,28 @@ static void step_sword(void)
     wave_x += wave_left ? -6 : 6;
   }
   if (attack == 8) {
-    wave_left = !facing;
-    wave_x = (s16)xpos + (wave_left ? 2 : -2);
-    wave_feet = feet;
-    wave_life = 1 + charge/5;
+    start_wave(1+charge/5,1+strength);
     charge = 0;
   } else if (charge < 42) {
     ++charge;
   }
 }
 
-static u8 sword_hits(s16 enemy_x, s16 enemy_feet)
+static u8 remaining_hp(u8 health, u8 damage)
+{
+  return health > damage ? health-damage : 0;
+}
+
+static u8 sword_damage(s16 enemy_x, s16 enemy_feet)
 {
   s16 dx = enemy_x-(s16)xpos, dy = enemy_feet-(s16)feet;
   s16 ahead = facing ? dx : -dx;
   if (attack && attack <= 12 && ahead >= -8 && ahead <= 32 && dy >= -39 && dy <= 26)
-    return 1;
+    return 1+strength;
   if (!wave_life) return 0;
   ahead = wave_left ? wave_x-enemy_x : enemy_x-wave_x;
   dy = enemy_feet-wave_feet;
-  return ahead >= -8 && ahead <= 22 && dy >= -40 && dy <= 22;
+  return ahead >= -8 && ahead <= 22 && dy >= -40 && dy <= 22 ? wave_damage : 0;
 }
 
 static void draw_fighter(u8 normal_pose, s16 x)

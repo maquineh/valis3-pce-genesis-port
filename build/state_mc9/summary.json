@@ -1,5 +1,5 @@
 {
-  "source": "C:\\projetos\\mednafen-1.32.1-win64\\mcs\\Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc9",
+  "source": "Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48.mc9",
   "stage_in_cdram_d": "STG4A",
   "cdram_stg_offset": 40960,
   "mpr": "ff f8 80 81 82 85 83 00",

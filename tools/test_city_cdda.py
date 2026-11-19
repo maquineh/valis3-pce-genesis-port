@@ -37,7 +37,7 @@ def main():
     sys.argv = ["city-audio", "--core", str(args.core), "--system", str(args.system),
                 "--cue", str(args.cue), "--output", str(args.output), "--script-only",
                 "--event", "600:start:4", "--event", "2250:start:4",
-                "--event", "2410:right:880",
+                "--event", "2420:start:4", "--event", "2650:right:880",
                 "--frames", str((times[-1] + 2) * 60)]
     harness.main()
     output = mono(args.output / "audio.wav")

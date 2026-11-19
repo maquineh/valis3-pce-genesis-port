@@ -23,6 +23,7 @@ static u16 room, scene_tick, xpos, feet;
 static s16 velocity; /* quarter pixels per tick; the cartridge floors signed steps */
 static u8 jump_buffer, attack_buffer;
 static u8 facing, walking, attack, aerial_attack, hp, invincible, displayed_hp, slot;
+#include "city_items.h"
 typedef struct {
   s16 x, feet, speed, velocity, left, right;
   u8 hp, timer, flash;
@@ -111,6 +112,7 @@ static void load_room(enum Room next, u16 x, u16 foot)
   camera = camera_for_player();
   camera_cell = (camera+(room==LATE ? 512 : 0)) >> 3;
   displayed_hp = 255;
+  displayed_mana = 255;
   if (room >= LATE) late_reset();
   if (room == ROOF) {
     enemies[0] = (Leaper){224,192,-1,0,142,246,2,18,0};
@@ -139,15 +141,14 @@ static void load_room(enum Room next, u16 x, u16 foot)
   bios_dma_xfer(to_vdp_addr(BIOS_VDP_DEFAULT_PLANEA),(const u8 *)initial_plane,64*rows);
   bios_dma_xfer(to_vdp_addr(BIOS_VDP_DEFAULT_WINDOW),(const u8 *)hud,128);
   bios_load_pal_update((Palette *)(packs[room]+2));
+  if (room >= ROOF) load_city_items();
   bios_vdp_disp_enable();
   enable_interrupts();
   bios_vblank_wait_default();
 }
 
-static void draw_pose_table(const u16 *table, u8 pose, s16 x, s16 y, u8 flip)
+static void draw_pose_parts(const s16 *p, u16 count, s16 x, s16 y, u8 flip)
 {
-  const s16 *p=(const s16 *)((const u8 *)table+table[pose]);
-  u16 count=*p++;
   for (u16 i=0;i<count;++i) {
     s16 left=*p++, top=*p++;
     u16 tile=*p++, shape=*p++;
@@ -169,16 +170,45 @@ static void draw_pose_table(const u16 *table, u8 pose, s16 x, s16 y, u8 flip)
   }
 }
 
+static void draw_pose_table(const u16 *table, u8 pose, s16 x, s16 y, u8 flip)
+{
+  const s16 *p=(const s16 *)((const u8 *)table+table[pose]);
+  draw_pose_parts(p+1,*p,x,y,flip);
+}
+
+static void draw_fire_thrower(u8 pose, s16 x, s16 y, u8 flip)
+{
+  const s16 *p=(const s16 *)((const u8 *)poses+poses[pose]);
+  /* The first two pieces are the body. Align their 32px width to the
+   * encounter position and leave the detached capture piece out. */
+  s16 offset=p[1]+16;
+  draw_pose_parts(p+1,2,x+(flip ? offset : -offset),y,flip);
+}
+
 static void draw_pose(u8 pose, s16 x, s16 y, u8 flip)
 {
   draw_pose_table(poses,pose,x,y,flip);
+}
+
+static void update_leaper_height(Leaper *e)
+{
+  s16 ground=ground_at(e->x);
+  e->feet+=e->velocity;
+  ++e->velocity;
+  if (e->feet>=ground) {
+    e->feet=ground; e->velocity=0; e->timer=20;
+  }
 }
 
 static void update_enemies(void)
 {
   for (u8 i=0;i<2;++i) {
     Leaper *e=&enemies[i];
-    if (e->flash) {--e->flash; continue;}
+    if (e->flash) {
+      --e->flash;
+      if (e->feet<(s16)ground_at(e->x)) update_leaper_height(e);
+      continue;
+    }
     if (!e->hp || e->x > (s16)xpos+152) continue;
     if (e->timer) --e->timer;
     else {
@@ -186,15 +216,13 @@ static void update_enemies(void)
       e->x+=e->speed;
       if (e->x<=e->left) e->speed=1;
       if (e->x>=e->right) e->speed=-1;
-      e->feet+=e->velocity;
-      ++e->velocity;
-      if (e->feet >= (s16)ground_at(e->x)) {
-        e->feet=ground_at(e->x); e->velocity=0; e->timer=20;
-      }
+      update_leaper_height(e);
     }
     s16 dx=e->x-(s16)xpos, dy=e->feet-(s16)feet;
-    if (sword_hits(e->x,e->feet)) {
-      --e->hp; e->flash=20;
+    u8 damage=sword_damage(e->x,e->feet);
+    if (damage) {
+      e->hp=remaining_hp(e->hp,damage); e->flash=20;
+      engine_audio_command(CMD_PLAY_SFX,CITY_SFX_HIT);
     } else if (!invincible && !e->flash && dx>-16 && dx<16 && dy>-34 && dy<21) {
       hit_player(e->x);
     }
@@ -211,8 +239,16 @@ static void player_step(void)
   if (recoiling) {
     --hurt; dir=recoil; attack_buffer=jump_buffer=0;
   } else if (bios_joy1_hit&PAD_B) jump_buffer=4;
-  if (room>=ROOF && !recoiling && (bios_joy1_hit&(PAD_A|PAD_C))) attack_buffer=4;
-  if (standing && jump_buffer) {velocity=-20; jump_buffer=0;}
+  if (room>=ROOF && !recoiling && (bios_joy1_hit&(PAD_A|PAD_C))) {
+    if ((pad&PAD_UP) && (bios_joy1_hit&PAD_C) && has_magic && mana && !attack) {
+      --mana;
+      cast_city_magic();
+    } else attack_buffer=4;
+  }
+  if (standing && jump_buffer) {
+    velocity=-20; jump_buffer=0;
+    engine_audio_command(CMD_PLAY_SFX,CITY_SFX_JUMP);
+  }
   else if (jump_buffer) --jump_buffer;
   if (!recoiling && standing && (attack_buffer || (attack>1 && !aerial_attack))) dir=0;
   s16 nx=(s16)xpos+dir;
@@ -225,6 +261,7 @@ static void player_step(void)
   if (attack) --attack;
   if (attack_buffer && !attack) {
     attack=15; aerial_attack=!standing || velocity<0; attack_buffer=0;
+    engine_audio_command(CMD_PLAY_SFX,CITY_SFX_SWORD);
   } else if (attack_buffer) --attack_buffer;
   floor=support_at(xpos);
   s16 next=(s16)feet+(velocity>>2);
@@ -271,7 +308,10 @@ static void draw(void)
   if (room==MEETING || room==FALL) {
     draw_movie();
   } else {
-    static const u8 strides[]={1,15,2,1,16,3};
+    static const u8 street_strides[]={1,15,2,1,16,3};
+    /* Pose 15 in the rooftop and arena banks still wears the street outfit. */
+    static const u8 rooftop_strides[]={1,16,2,1,16,3};
+    const u8 *strides=room==STREET ? street_strides : rooftop_strides;
     u8 pose=walking ? strides[(walking-1)>>3] : 0;
     if (feet!=support_at(xpos)) pose=velocity<=0 ? 17 : 18;
     if (room>=ROOF) draw_fighter(pose,screen_x);
@@ -286,17 +326,20 @@ static void draw(void)
     }
   }
   if (room>=LATE) late_draw();
+  if (room==ROOF || room==LATE) draw_city_items();
   if (!slot) {bios_sprlist[0].pos_y=0;slot=1;}
   bios_sprlist[slot-1].next=0;
   bios_copy_sprlist();
   if (room >= ROOF) draw_charge();
-  if (displayed_hp!=hp) {
+  if (displayed_hp!=hp || displayed_mana!=mana) {
     if (room>=ROOF) for (u8 i=0;i<12;++i) {
       s16 units=(s16)hp-2*i;
       hud[4+i]=combat_hp_tile(units>=2 ? 2 : units>0);
+      hud[36+i]=i<4*mana ? hud_map[36+i] : 0x8000;
     }
     bios_dma_xfer(to_vdp_addr(BIOS_VDP_DEFAULT_WINDOW),(const u8 *)hud,128);
     displayed_hp=hp;
+    displayed_mana=mana;
   }
 }
 
@@ -322,11 +365,12 @@ void main(void)
   bios_load_vdp_regs_default();
   bios_load_vdp_regs(regs);
   hp=24; invincible=0; facing=1;
+  reset_city_items();
   load_room(start,x,y+32);
-  if (start==BOSS) boss_intro_tick=476;
+  if (start==BOSS) boss_intro_tick=BOSS_VOICE_TICKS;
   /* PCE city playback repeats LBA 112021..122668 (track 38).
    * The mixed-mode Mega CD image places that recording on track 22. */
-  engine_repeat_cdda(22);
+  engine_repeat_cdda(start==BOSS ? 27 : 22);
   for (;;) {
     bios_vblank_wait_default();
     ++scene_tick; ++cloud_tick;
@@ -338,12 +382,15 @@ void main(void)
         else load_room(ROOF,32,192);
       }
     } else {
-      u8 in_intro=room==BOSS && boss_intro_tick<476;
+      u8 in_intro=room==BOSS && boss_intro_tick<BOSS_VOICE_TICKS;
       if (in_intro) boss_introduction();
       else if (arena_arrival) {
         if (xpos<1304) {++xpos; if (++walking>48) walking=1;}
         else walking=0;
-      } else player_step();
+      } else {
+        player_step();
+        if (room==ROOF || room==LATE) collect_city_items();
+      }
       if (room==STREET && xpos>=744) load_room(MEETING,24,168);
       else if (room==ROOF) {
         update_enemies();
@@ -359,15 +406,21 @@ void main(void)
         }
       } else if (room>=LATE) {
         if (!arena_arrival && !in_intro) late_step();
-        if (!hp || feet>224) {hp=24;load_room((enum Room)room,32,room==BOSS?192:160);invincible=75;}
+        if (!hp || feet>224) {
+          hp=24; load_room((enum Room)room,32,room==BOSS?192:160); invincible=75;
+          if (room==BOSS) boss_intro_tick=BOSS_VOICE_TICKS;
+        }
         else if (room==LATE && xpos>=1248 && feet==192) {
           arena_arrival=1;
           facing=1;
-          if (camera>=1272 && xpos>=1304) load_room(BOSS,32,192);
+          if (camera>=1272 && xpos>=1304) {
+            load_room(BOSS,32,192);
+            engine_audio_command(CMD_PLAY_ONCE,23); /* PCE 39: the encounter dialogue. */
+          }
         }
         else if (room==BOSS && !boss_hp && boss_clear>=120) {
           reset_scroll();
-          engine_transition_scene(FILE_STAGE2_MMD,FILE_STAGE2_MMD,32,160,&next_module);
+          engine_transition_scene(FILE_STAGE2_MMD,FILE_STORY_LAST,32,160,&next_module);
           return;
         }
       }

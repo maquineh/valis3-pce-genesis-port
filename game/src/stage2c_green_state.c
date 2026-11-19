@@ -130,19 +130,39 @@ static void stage_input(void)
     if (stage_combat.death_timer) { --stage_combat.death_timer; return; }
     stage_player.x=SPAWN_X; stage_player.y=SPAWN_Y;
     stage_player.vy=0; stage_player.grounded=0;
+    stage_player.slide_timer=0; stage_player.slide_hit=0;
     stage_combat_respawn(&stage_combat, stage_enemies, SPAWN_X, SPAWN_Y);
   }
+  u8 attack = (bios_joy1_hit & (PAD_A | PAD_C)) != 0;
+  u8 old_hp = stage_combat.hp;
   stage_combat_face(&stage_combat, bios_joy1_hold & PAD_LEFT,
                     bios_joy1_hold & PAD_RIGHT);
+  u8 slide_started = 0;
+  if (!stage_player.slide_timer && (bios_joy1_hold & PAD_DOWN) &&
+      (bios_joy1_hit & PAD_B) && stage_player.grounded) {
+    stage_slide_start(&stage_player, stage_combat.facing);
+    slide_started = 1;
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_JUMP);
+  }
+  u8 jumped = !slide_started && (bios_joy1_hit & PAD_B) && stage_player.grounded;
   stage_physics_step(&stage_player, stage_surfaces,
                      sizeof(stage_surfaces) / sizeof(stage_surfaces[0]),
                      stage_solids, sizeof(stage_solids) / sizeof(stage_solids[0]),
                      STAGE_SCREENS * 256, bios_joy1_hold & PAD_LEFT,
                      bios_joy1_hold & PAD_RIGHT, bios_joy1_hit & PAD_B,
                      SPAWN_X, SPAWN_Y);
-  stage_combat_step(&stage_combat, stage_enemies,
-                    (bios_joy1_hit & (PAD_A | PAD_C)) != 0,
-                    stage_player.x, stage_player.y, SPAWN_X, SPAWN_Y);
+  if (jumped) engine_audio_command(CMD_PLAY_SFX, CITY_SFX_JUMP);
+  u8 hit = stage_combat_step_pose(&stage_combat, stage_enemies,
+                             attack && !stage_player.slide_timer,
+                             stage_player.x, stage_player.y, SPAWN_X, SPAWN_Y,
+                             1, stage_player.slide_timer != 0);
+  if (stage_player.slide_timer && stage_combat_slide_damage(
+        &stage_combat, stage_enemies, stage_player.x, stage_player.y,
+        &stage_player.slide_hit)) hit = 1;
+  if (attack && !stage_player.slide_timer)
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_SWORD);
+  if (hit || stage_combat.hp < old_hp)
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_HIT);
   camera_x = stage_player.x > 120 ? stage_player.x - 120 : 0;
   if (camera_x > (STAGE_SCREENS - 1) * 256)
     camera_x = (STAGE_SCREENS - 1) * 256;
@@ -156,7 +176,7 @@ static void stage_input(void)
 static void player_draw(void)
 {
   bios_sprlist[0].pos_x = 128 + stage_player.x - camera_x;
-  bios_sprlist[0].pos_y = 128 + stage_player.y;
+  bios_sprlist[0].pos_y = 128 + stage_player.y + (stage_player.slide_timer ? 8 : 0);
   if (stage_combat.game_over || (stage_combat.invulnerable & 4)) {
     bios_sprlist[0].pos_x=0; bios_sprlist[0].pos_y=0;
   }
@@ -235,6 +255,7 @@ void main(void)
   screen_no = camera_x >> 8;
   draw_screen(0, screen_no);
   draw_screen(SCREEN_COLS, next_screen(screen_no));
+  engine_repeat_cdda(24); /* Coast, original PCE track 40. */
 
   for (;;)
   {

@@ -87,3 +87,76 @@ Mega CD test above used the real user-provided BIOS and Genesis Plus GX.
 The Docker Desktop Linux engine could not start because WSL requests hung and
 the WSL service remained in `StopPending`. Restarting Windows is required to
 retry recovery; no Docker images or WSL distributions were reset or removed.
+
+## 2026-11-18 - phase 2 assets, effects and dungeon boss
+
+The native Windows build produced `build/valis3.iso` with SHA-256
+`854c8a58ad198d773e0c42f218e1418d41819ab90cae2b709da4234991b4fb8b`
+(3,063,808 bytes).  The isolated tests used `build/disc-test.cue`, which
+references the same ISO and the 54 extracted CD-DA WAVs.
+
+- `tools/test_city_integration.py` completed rooms 0-6, defeated both
+  rooftop enemies, cleared the gap and passed the six hardware-palette checks
+  after the original HUD icons replaced the generated item motifs.
+- `tools/test_stage_combat_integration.py` completed the full phase-2 chain
+  (scenes 3, 7, 4, 6, 20, 5, 3), visited every packed screen of the coast,
+  seaside, forest and dungeon, defeated every prototype enemy and the dungeon
+  boss, and verified the final BRAM checkpoint.
+- `tools/test_stage2_boss_integration.py` selected scene 20 from the title,
+  waited out the voiced intro, landed sixteen sword hits and verified the
+  transition to STAGE3A. Output: `build/verify-boss-final/`.
+- `tools/test_city_sfx.py` serialized the running emulator after a jump and
+  an attack and found the exact packed jump and sword sample bytes in Mega CD
+  PCM RAM. This proves the Sub CPU loaded the effects; the audio mixing test
+  is not used because CD-DA and PCM share the captured stereo output.
+- `tools/test_city_voice.py` found the extracted Cham voice bank in PCM RAM
+  during the meeting scene. `tools/test_city_cdda.py` matched the city music
+  at 48, 83 and 190 seconds (scores 0.980/0.984/0.984) and found Cham's track
+  19 line at 56.17 s of emulation.
+- `tools/test_title_menu_integration.py` passes title audio, menu selection,
+  CONTINUE restore, a reload, the failed-save path and the final CITY
+  selection. The comparison windows now exclude the story prologue and the
+  emulator's 16-byte BRAM header normalization.
+- `tools/test_stage_physics_integration.py` passes motion, jump, landing,
+  save, CONTINUE and the post-reboot background anchor. The background
+  windows exclude the dynamic HP HUD and the actor sprites.
+
+These are emulator checks with the user's BIOS; they do not validate physical
+hardware.
+
+## 2026-11-19 - complete stage 2 route and slide
+
+The native rebuild produced `build/valis3.iso` and `dist/valis3_mcd.iso` with
+SHA-256 `474374adb122d03bfd532524ef19ec823c7ab5df1744a0aef0a5914f6982fae5`
+(3,065,856 bytes). The ISO additionally carries the DOWN+B slide in the shared
+stage physics.
+
+- `tools/test_stage_combat_integration.py` completed
+  `STAGE2 -> STAGE2A2 -> STAGE2B -> STAGE2C -> STG2BOSS -> STAGE3A -> STAGE2`,
+  visited every packed screen (STAGE2/2C x=948/958, STAGE2A2/2B x=406/488),
+  defeated the per-screen enemies and the dungeon boss, and passed the BRAM
+  checkpoint check.
+- `tools/test_stage_slide_integration.py` entered STAGE2A2, walked to the
+  captured lance enemy and slid through it. The enemy lost one HP
+  (2 -> 1), the player kept all three HP and the slide timer returned to zero:
+
+```text
+before  player x=128 hp=3  enemy hp=2 slide=0
+sliding player x=152 hp=3  enemy hp=1 slide=10
+after   player x=182 hp=3  enemy hp=1 slide=0
+PASS: DOWN+B slide crosses the STAGE2A2 enemy with damage and no contact
+```
+
+- `tools/test_stage_physics_integration.py` verified that DOWN + B starts a
+  grounded slide instead of a jump, covers at least 40 pixels and ends
+  grounded. `tools/test_stage2_boss_integration.py` repeated its sixteen-hit
+  defeat and STAGE3A transition.
+- `tools/test_city_integration.py`, `tools/test_title_menu_integration.py`,
+  `tools/test_city_sfx.py`, `tools/test_city_voice.py` and
+  `tools/test_city_cdda.py` all passed on the same build. The CD-DA checks
+  scored 0.980/0.984/0.984 and found Cham's line at 56.17 s.
+- `tools/verify_all.py` reported `== 0 failure(s) ==`.
+
+The room-by-room PCE comparison and the remaining asset limits (the STAGE2C
+dungeon actors are still prototype sprites) are documented in
+`docs/stage2-comparison.md`.

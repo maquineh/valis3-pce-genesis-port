@@ -49,6 +49,10 @@ InputState = ct.CFUNCTYPE(ct.c_int16, ct.c_uint, ct.c_uint, ct.c_uint, ct.c_uint
 BUTTONS = {'b': 0, 'y': 1, 'select': 2, 'start': 3, 'up': 4, 'down': 5,
            'left': 6, 'right': 7, 'a': 8, 'x': 9, 'l': 10, 'r': 11}
 
+# Tests may set core options before calling main(), e.g. to mute CD-DA when
+# isolating the Mega CD PCM channels.  main() merges these over the defaults.
+CORE_OPTIONS = {}
+
 
 def button_event(value):
     """Parse FRAME:BUTTON:DURATION into a half-open input interval."""
@@ -97,7 +101,7 @@ def write_png(path, image):
                      chunk(b'IDAT', zlib.compress(b''.join(rows))) + chunk(b'IEND', b''))
 
 
-def main(before_frame=None):
+def main(before_frame=None, after_frame=None, frontend_variables=True):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--core', required=True, type=Path, help='Path to the libretro core')
     parser.add_argument('--system', required=True, type=Path, help='System directory containing BIOS')
@@ -152,12 +156,23 @@ def main(before_frame=None):
 
     # Keep callbacks and their referenced strings alive for the core's lifetime.
     directories = [str(args.system).encode('utf-8'), str(args.save_dir).encode('utf-8')]
-    options = {}
+    options = {(key.encode() if isinstance(key, str) else key):
+               (value.encode() if isinstance(value, str) else value)
+               for key, value in CORE_OPTIONS.items()}
     state = {'frame': 0, 'format': 0, 'video': None, 'audio': None,
              'samples': 0, 'nonzero': 0, 'queries': Counter(), 'presses': Counter()}
 
+    # Beetle PCE Fast calls the frontend logger while opening a CUE. Its
+    # messages are printf-style varargs. We only need the video/audio callbacks.
+    @ct.CFUNCTYPE(None, ct.c_int, ct.c_char_p)
+    def quiet_log(level, message):
+        pass
+
     @Environment
     def environment(command, data):
+        if command == 27:  # GET_LOG_INTERFACE
+            ct.cast(data, ct.POINTER(ct.c_void_p))[0] = ct.cast(quiet_log, ct.c_void_p).value
+            return True
         if command == 10:  # SET_PIXEL_FORMAT
             state['format'] = ct.cast(data, ct.POINTER(ct.c_uint))[0]
             return state['format'] in (0, 1, 2)
@@ -168,10 +183,13 @@ def main(before_frame=None):
             ct.cast(data, ct.POINTER(ct.c_bool))[0] = True
             return True
         if command == 16:  # SET_VARIABLES, legacy core options
+            if not frontend_variables:
+                return True
             values = ct.cast(data, ct.POINTER(Variable))
             i = 0
             while values[i].key:
-                options[values[i].key] = (values[i].value or b'').partition(b';')[2].strip().split(b'|')[0]
+                if values[i].key not in options:
+                    options[values[i].key] = (values[i].value or b'').partition(b';')[2].strip().split(b'|')[0]
                 i += 1
             return True
         if command == 15:  # GET_VARIABLE
@@ -282,6 +300,8 @@ def main(before_frame=None):
             if before_frame is not None:
                 before_frame(core,frame)
             core.retro_run()
+            if after_frame is not None:
+                after_frame(frame, state['video'])
             if frame in args.capture_ram:
                 # RETRO_MEMORY_SYSTEM_RAM is 2. Store the raw core-provided
                 # bytes so tests can interpret the target architecture's RAM.

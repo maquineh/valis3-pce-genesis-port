@@ -36,6 +36,19 @@ int main(void)
     for (i = 0; i < 16; ++i) stage_physics_step(&p, seam, 2, blocks, 0, 512, 0, 1, 0, 240, 104);
     if (p.x != 272 || p.y != 104 || !p.grounded) return 8;
   }
+  /* DOWN + B slide: 18 frames, 3 px each, no jump, then grounded control. */
+  p.x = 120; p.y = 104; p.vy = 0; p.grounded = 1;
+  p.slide_timer = p.slide_dir = p.slide_hit = 0;
+  stage_slide_start(&p, 1);
+  if (p.slide_timer != 18 || p.slide_dir != 1) return 10;
+  for (i = 0; i < 6; ++i)
+    stage_physics_step(&p, platform, 1, blocks, 2, 256, 0, 0, 0, 120, 104);
+  if (p.x != 138 || p.y != 104 || !p.grounded) return 11;
+  stage_physics_step(&p, platform, 1, blocks, 2, 256, 0, 0, 1, 120, 104);
+  if (p.y != 104 || p.vy != 0) return 12; /* jump is ignored mid-slide */
+  for (i = 0; i < 12; ++i)
+    stage_physics_step(&p, platform, 1, blocks, 2, 256, 0, 0, 0, 120, 104);
+  if (p.slide_timer != 0 || p.x != 174 || p.y != 104 || !p.grounded) return 13;
   return 0;
 }
 

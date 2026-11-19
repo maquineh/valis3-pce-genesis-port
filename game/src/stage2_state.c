@@ -29,17 +29,25 @@ extern u16 res_stage2_hud[];
 #define ENEMY_TILE (PLAYER_TILE + 4 * PLAYER_FRAME_TILES)
 #define HSCROLL_ADDR 0xBC00
 
-static u8 screen_no, walk_tick, encounter_started, displayed_hp;
+static u8 screen_no, walk_tick, encounter_started, displayed_hp, room_no;
 static u16 camera_x;
 StagePhysics stage_player;
 static StageCombat stage_combat;
 static StageEnemy stage_enemies[STAGE_ENEMY_MAX];
-static const StageSurface stage_surfaces[] = { {0,255,176,176}, {512,767,112,112} };
-static const StageSolid stage_solids[] = { {0,176,256,192}, {512,112,768,192} };
+/* A continuous floor lets the normal route visit all four captured screens. */
+static const StageSurface stage_surfaces[] = { {0,1023,176,176} };
+static const StageSolid stage_solids[] = { {0,176,1024,192} };
 #define SPAWN_X 32
 #define SPAWN_Y 160
 #define SCENE_ID FILE_STAGE2_MMD
-#define STAGE_EXIT_X 224
+#define STAGE_EXIT_X 992
+
+static void room_enemies(u8 room)
+{
+  u16 base = (u16)room << 8;
+  stage_enemies[0] = (StageEnemy){base+140,160,base+100,base+235,2,1,1,0};
+  stage_enemies[1] = (StageEnemy){base+210,160,base+180,base+235,2,1,1,0};
+}
 
 static vdp_reg const stage_vdp_regs[] = {
     (VDP_REG_PL_SIZE & 0xFF00) | (VDP_PL_W64 | VDP_PL_H32),
@@ -101,6 +109,8 @@ static void stage_load(void)
   }
   stage_combat_init(&stage_combat, stage_enemies,
                     140,160,100,170, 210,160,180,235);
+  room_no = (u8)(stage_player.x >> 8);
+  room_enemies(room_no);
 
   /* plane B stays clear behind the stage */
   bios_plane_fill(
@@ -115,22 +125,47 @@ static void stage_input(void)
     if (stage_combat.death_timer) { --stage_combat.death_timer; return; }
     stage_player.x=SPAWN_X; stage_player.y=SPAWN_Y;
     stage_player.vy=0; stage_player.grounded=0;
+    stage_player.slide_timer=0; stage_player.slide_hit=0;
     stage_combat_respawn(&stage_combat, stage_enemies, SPAWN_X, SPAWN_Y);
   }
+  u8 attack = (bios_joy1_hit & (PAD_A | PAD_C)) != 0;
+  u8 old_hp = stage_combat.hp;
   stage_combat_face(&stage_combat, bios_joy1_hold & PAD_LEFT,
                     bios_joy1_hold & PAD_RIGHT);
+  u8 slide_started = 0;
+  if (!stage_player.slide_timer && (bios_joy1_hold & PAD_DOWN) &&
+      (bios_joy1_hit & PAD_B) && stage_player.grounded) {
+    stage_slide_start(&stage_player, stage_combat.facing);
+    slide_started = 1;
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_JUMP);
+  }
+  u8 jumped = !slide_started && (bios_joy1_hit & PAD_B) && stage_player.grounded;
   stage_physics_step(&stage_player, stage_surfaces,
                      sizeof(stage_surfaces) / sizeof(stage_surfaces[0]),
                      stage_solids, sizeof(stage_solids) / sizeof(stage_solids[0]),
                      STAGE_SCREENS * 256, bios_joy1_hold & PAD_LEFT,
                      bios_joy1_hold & PAD_RIGHT, bios_joy1_hit & PAD_B,
                      SPAWN_X, SPAWN_Y);
+  if (jumped) engine_audio_command(CMD_PLAY_SFX, CITY_SFX_JUMP);
   if (stage_player.x >= 64) encounter_started = 1;
+  u8 room = (u8)(stage_player.x >> 8);
+  if (room != room_no) {
+    room_no = room;
+    room_enemies(room);
+  }
   if (bios_joy1_hold & (PAD_LEFT | PAD_RIGHT)) ++walk_tick;
   else walk_tick = 0;
-  stage_combat_step(&stage_combat, stage_enemies,
-                    (bios_joy1_hit & (PAD_A | PAD_C)) != 0,
-                    stage_player.x, stage_player.y, SPAWN_X, SPAWN_Y);
+  u8 hit = stage_combat_step_pose(&stage_combat, stage_enemies,
+                             attack && !stage_player.slide_timer,
+                             stage_player.x, stage_player.y, SPAWN_X, SPAWN_Y,
+                             1, stage_player.slide_timer != 0);
+  if (stage_player.slide_timer && stage_combat_slide_damage(
+        &stage_combat, stage_enemies, stage_player.x, stage_player.y,
+        &stage_player.slide_hit)) hit = 1;
+  if (attack && !stage_player.slide_timer)
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_SWORD);
+  if (hit || stage_combat.hp < old_hp)
+    engine_audio_command(CMD_PLAY_SFX, CITY_SFX_HIT);
   camera_x = stage_player.x > 120 ? stage_player.x - 120 : 0;
   if (camera_x > (STAGE_SCREENS - 1) * 256)
     camera_x = (STAGE_SCREENS - 1) * 256;
@@ -145,10 +180,12 @@ static void stage_input(void)
 
 static void player_draw(void)
 {
-  u8 frame = stage_combat.attack_flash ? 3 : walk_tick ? 1 + ((walk_tick >> 3) & 1) : 0;
+  u8 sliding = stage_player.slide_timer != 0;
+  u8 frame = sliding ? 3 : stage_combat.attack_flash ? 3 : walk_tick ? 1 + ((walk_tick >> 3) & 1) : 0;
   u8 flip = !stage_combat.facing;
   draw_actor(0, PLAYER_TILE + frame * PLAYER_FRAME_TILES,
-             (s16)stage_player.x - camera_x - (flip ? 40 : 8), (s16)stage_player.y - 32,
+             (s16)stage_player.x - camera_x - (flip ? 40 : 8),
+             (s16)stage_player.y - (sliding ? 24 : 32),
              64, 48, 3, flip, !stage_combat.game_over && !(stage_combat.invulnerable & 4), 11);
   for (u8 i = 0; i < STAGE_ENEMY_MAX; ++i) {
     StageEnemy *e = &stage_enemies[i];
@@ -187,6 +224,7 @@ void main(void)
   screen_no = camera_x >> 8;
   draw_screen(0, screen_no);
   draw_screen(SCREEN_COLS, next_screen(screen_no));
+  engine_repeat_cdda(24); /* Coast, original PCE track 40. */
 
   for (;;)
   {

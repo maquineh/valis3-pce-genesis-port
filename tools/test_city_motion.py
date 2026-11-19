@@ -39,7 +39,7 @@ def main():
             if x==32 and y==192 and cam==0 and t==4:
                 active=frame
         if active is None:
-            return frame<2300 and script_input(events,frame,button)
+            return (frame<2300 and script_input(events,frame,button)) or (button==3 and 2420<=frame<2424)
         frame=2390+frame-active
         if frame not in records and 2390<=frame<=2930:
             ram=ct.string_at(core.retro_get_memory_data(2),65536)
@@ -56,7 +56,7 @@ def main():
         return script_input(events,frame,button)
     harness.event_pressed=input_at
     sys.argv=['motion','--core',str(args.core),'--system',str(args.system),'--cue',str(args.cue),
-              '--output',str(args.output),'--script-only','--no-audio-file','--frames','3270',
+              '--output',str(args.output),'--script-only','--no-audio-file','--frames','3700',
               '--event','600:start:4','--event','2250:start:4','--event','2410:right:285',
               '--event','2650:b:3','--event','2710:left:191']
     harness.main()

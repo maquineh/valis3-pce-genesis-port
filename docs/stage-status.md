@@ -1,7 +1,8 @@
 # Stage migration status
 
 There are ten `STG` blocks on PCE track 2. Ten experimental scene modules
-use BAT/VRAM/CRAM captured from six of those blocks in Mednafen save states.
+(plus the selectable STG2C dungeon boss) use BAT/VRAM/CRAM captured from six
+of those blocks in Mednafen save states.
 They display captured background windows with horizontal movement, jumping, and
 manually approximated collision surfaces. STG2A and STG2B use the captured player;
 some other scenes still use the small placeholder sprite. The earlier scene prototypes also have two authored patrol enemies each, basic attacks, contact
@@ -165,7 +166,7 @@ or overwrites an unrecognized save file.
 While in a scene, use LEFT/RIGHT to move, B to jump, A/C to attack, and START
 to save the current world-space position and return to the title. Defeat both
 prototype enemies and reach the scene exit to advance automatically. The
-sequence remains STAGE2 → STAGE2A2 → STAGE2B → STAGE2C → STAGE3A → STAGE2; each
+sequence remains STAGE2 -> STAGE2A2 -> STAGE2B -> STAGE2C -> STG2BOSS -> STAGE3A -> STAGE2; each
 transition checkpoints the next scene's spawn, so CONTINUE resumes there.
 STAGE2CG and STAGE2CB are optional sixth and seventh menu options outside that
 loop; both exits lead to STAGE3A.
@@ -189,6 +190,8 @@ if an update cannot be completed.
 | 8 | `STAGE4A.MMD` | Local graveyard with combat (save ID 10) |
 | 9 | `STAGE1A.MMD` | Imported shrine (save ID 11) |
 | 10 | `STAGE4AX.MMD` | Alternate two-window graveyard (save ID 12) |
+| 11 | `STG2BOSS.MMD` | Captured STG2C dungeon boss (save ID 20) |
+| 12 | `STAGE1.MMD` | CITY (default selection) |
 
 The green room and the corridor retain save IDs 8 and 9. The new entries support horizontal movement and START/CONTINUE position checkpoints. The shrine uses `--pal build/stg_extract/STG1A_pal.bin:0x64` in place of the faded capture palette. See [the disc inventory](iso-stage-inventory.md) for the source blocks.
 
@@ -226,7 +229,7 @@ STG4A now includes a skull and a skull-column using frames and durations from it
 ## Coast and forest after the opening
 
 Run `py -3 tools/pack_phase2_rooms.py` to extract the two 256x224 playfields.
-Both saves display BAT rows 49�53 for the HUD and rows 7�29 underneath. The
+Both saves display BAT rows 49�53 for the HUD and rows 7�29 underneath. The
 coast uses the lance wielder from the seaside save, with four frames. The
 forest uses the red-outlined figure from the forest save, with three frames.
 Each room preserves the two actor palettes and fits the remaining background
@@ -234,13 +237,81 @@ colors into the four shared Mega Drive palette lines. The patrol, damage and
 exit rules are port gameplay. Defeating the resident enemy unlocks the right
 edge. The coast leads to the forest, which leads to the blue dungeon.
 
+All four phase-2 rooms explicitly start the original coast recording (PCE
+track 40, disc track 24). `test_stage_combat_integration.py` drives the full
+coast → seaside → forest → dungeon → boss → ice-castle → coast chain, defeats
+every prototype enemy and the dungeon boss, and passes the hardware palette
+and BRAM checks.
+
+`tools/pack_phase2_wide.py` expands the seaside and forest from one screen to
+two 256-pixel screens (64x28 cells) using the captured BAT: STG2A2 uses
+captured windows at rows 7 and 20, STG2B at rows 0 and 8. The module switches
+the whole captured window when the player crosses x=256; the world floor and
+patrol table span both screens. STG2B now starts at x=32 on screen 0, crosses
+x=256 and reaches the exit at x=488. The combat test observes the seaside at
+x=256/404 and the forest at x=32 then x=488, so both maps are exercised.
+
+STAGE2 (coast) and STAGE2C (dungeon) use a continuous floor and per-screen
+enemy sets: the normal route starts at screen 0, crosses all four 256-pixel
+screens and only then reaches the 992-pixel exit. The combat test records the
+player at x=948 in STAGE2 and x=958 in STAGE2C before the transition. The
+captured BAT does not contain a second horizontal playfield to the right of
+the visible window (columns 32-63 are blank/HUD), so the added STG2A2/2B
+screen is a different captured vertical window, not a contiguous retail room.
+
+## Stage 2 slide
+
+`stage_physics.h` implements the PCE slide for every module that uses the
+shared movement code (STAGE2, STAGE2A2, STAGE2B, STAGE2C, the optional
+STAGE2CB/2CG rooms, STAGE3A and the dungeon boss). DOWN + B on the ground
+starts an 18-frame slide at three pixels per frame, twice as fast as walking,
+and the jump input is suppressed. During the slide the body is lowered:
+enemy contact is ignored and each enemy loses one hit point per slide
+(`stage_combat_slide_damage`); the boss takes one slide hit as well. Entry uses
+the original PCM jump bank and damage uses the original hit bank. Normal
+control returns when the timer reaches zero.
+
+Evidence: `tools/test_stage_slide_integration.py` walks toward the captured
+STAGE2A2 lance enemy and slides through it:
+
+```text
+before  player x=128 hp=3  enemy hp=2 slide=0
+sliding player x=152 hp=3  enemy hp=1 slide=10
+after   player x=182 hp=3  enemy hp=1 slide=0
+PASS: DOWN+B slide crosses the STAGE2A2 enemy with damage and no contact
+```
+
+`tools/test_stage_physics_integration.py` also verifies that DOWN + B starts a
+grounded slide instead of a jump, covers at least 40 pixels and ends grounded.
+The room-by-room PCE comparison, captured enemy inventory and remaining asset
+gaps are in `docs/stage2-comparison.md`.
+
+
+## Dungeon boss
+
+`STG2BOSS.MMD` is the twelfth title-menu scene (one LEFT from CITY) and is
+also the normal exit from STAGE2C. It uses the one-screen STG2C corridor
+capture, the captured STG2A player frames and the 32x32 blue-knight pair plus
+16x16 fireball extracted from the STG2C save state by
+`tools/pack_stage2_boss.py`. The pair and the player share the captured line-3
+palette; the corridor's lines 0-2 are not modified. The boss has 16 hit points,
+floats between x=160 and x=208, fires projectiles and keeps its remaining hit
+points across player retries. The scene plays the PCE encounter conversation
+(track 23) for 17 seconds and then repeats the PCE boss track (track 27).
+`tools/test_stage2_boss_integration.py` selects it, lands sixteen sword hits
+and verifies the transition to STAGE3A; `test_stage_combat_integration.py`
+reaches it through STAGE2C and records the sequence `3, 7, 4, 6, 20, 5, 3`.
+
+The original PCM effects and the replaced HUD item icons are documented in
+[audio-effects.md](audio-effects.md).
+
 ## Genesis city on START
 
 CITY is the default selection. Save ID 2 stores the city in STAGE1.MMD. The
 existing numbered selectors retain their IDs. The route follows the Japanese
 cartridge through the residential street, rooftop encounter, descent to the
-sword and first rooftop fight. At the right end of the recovered rooftop
-segment the port continues to STG2A. The rooftop edge heights are read from
+sword and first rooftop fight. The later roofs lead to the voiced boss encounter.
+After victory the PCE rescue movie leads to STG2A. The rooftop edge heights are read from
 the cartridge foreground map. B jumps and A or C swings the sword after the
 transformation. START saves the current world position and opens the title.
 

@@ -30,7 +30,8 @@ static unsigned char checkpoint_screens(unsigned char scene)
       scene == FILE_STAGE2C_MMD) return 4;
   if (scene == FILE_STAGE2B_MMD || scene == FILE_STAGE3A_MMD ||
       scene == FILE_STAGE1A_MMD || scene == FILE_STAGE4A_ALT_MMD) return 2;
-  if (scene == FILE_STAGE2C_GREEN_MMD || scene == FILE_STAGE2C_B_MMD || scene == FILE_STAGE4A_MMD) return 1;
+  if (scene == FILE_STAGE2C_GREEN_MMD || scene == FILE_STAGE2C_B_MMD ||
+      scene == FILE_STAGE4A_MMD || scene == FILE_STAGE2_BOSS_MMD) return 1;
   return 0;
 }
 

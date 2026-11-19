@@ -42,7 +42,7 @@ try {
     $env:VALIS_BUILD_DIR = Convert-ToMsysPath $Work
     @'
 cd "$VALIS_BUILD_DIR" || exit 1
-exec make M68K_PREFIX= disc/ipx.mmd disc/game.mmd disc/stage1.mmd disc/stage2.mmd disc/stage2b.mmd disc/stage3a.mmd disc/stage2c.mmd disc/stage2cg.mmd disc/stage2cb.mmd disc/stage4a.mmd disc/stage1a.mmd disc/stage4ax.mmd disc/stage2a2.mmd disc/spx.smd build/boot.bin > build.log 2>&1
+exec make M68K_PREFIX= story disc/ipx.mmd disc/game.mmd disc/stage1.mmd disc/stage2.mmd disc/stage2b.mmd disc/stage3a.mmd disc/stage2c.mmd disc/stage2cg.mmd disc/stage2cb.mmd disc/stage4a.mmd disc/stage1a.mmd disc/stage4ax.mmd disc/stage2a2.mmd disc/stg2boss.mmd disc/spx.smd build/boot.bin > build.log 2>&1
 '@ | Set-Content -LiteralPath (Join-Path $Stage 'build.sh') -Encoding ascii
     & (Join-Path $Sgdk 'bin\sh.exe') (Join-Path $Stage 'build.sh')
     Get-Content -LiteralPath (Join-Path $Work 'build.log')
@@ -50,7 +50,9 @@ exec make M68K_PREFIX= disc/ipx.mmd disc/game.mmd disc/stage1.mmd disc/stage2.mm
 
     Push-Location $Work
     try {
-        & $Xorriso -as mkisofs -quiet -iso-level 1 -G build/boot.bin -pad -V valis3 -sysid MEGA_CD -o valis3.iso disc
+        # The console reads ISO9660 names. Rock Ridge records would spill this
+        # root into a second sector, which Megadev indexes with a wrong stride.
+        & $Xorriso -as mkisofs --norock -quiet -iso-level 1 -G build/boot.bin -pad -V valis3 -sysid MEGA_CD -o valis3.iso disc
         if ($LASTEXITCODE -ne 0) { throw 'ISO creation failed; existing ISO was preserved.' }
     } finally { Pop-Location }
     $Iso = Join-Path $Work 'valis3.iso'

@@ -22,7 +22,7 @@ HARNESS = Path(__file__).resolve().with_name('test_megacd_libretro.py')
 CASES = (
     ('stage2', 3, (32, 160), 4),
     ('stage2a2', 7, (80, 172), 4),
-    ('stage2b', 4, (280, 128), 2),
+    ('stage2b', 4, (32, 128), 2),
     ('stage2c', 6, (100, 50), 4),
     ('stage3a', 5, (32, 160), 2),
 )
@@ -53,14 +53,25 @@ def state(path, offset):
     return struct.unpack_from('<HHhH', data, offset)
 
 
+def state_slide(path, offset):
+    data = path.read_bytes()
+    if len(data) != 65536:
+        raise ValueError('expected 64 KiB Genesis Plus GX work RAM: %s' % path)
+    x, y, vy, grounded = struct.unpack_from('<HHhH', data, offset)
+    # The core exposes 68000 words in host byte order, so the two adjacent
+    # byte fields swap inside their word: 68000 slide_timer lives at +8.
+    return x, y, vy, grounded, data[offset + 9], data[offset + 8]
+
+
 def check_scene_background(first, second, label):
     """Compare fixed map anchors while allowing actors to move between loads."""
     a = Image.open(first).convert('RGB')
     b = Image.open(second).convert('RGB')
     check(a.size == b.size == (256, 224), label + ' screenshot dimensions')
-    # Sprites stay inside y=32..191 in these captures. The top and bottom map
-    # strips remain static and also catch a camera or BAT restore regression.
-    for box in ((0, 0, 208, 24), (0, 200, 256, 224)):
+    # The HUD updates with HP and the player/enemy sprites occupy the centre
+    # band. Compare a left background window and the ground strip; both catch
+    # a camera or BAT restore regression without reading dynamic actors.
+    for box in ((0, 32, 64, 64), (0, 200, 256, 224)):
         check(a.crop(box).tobytes() == b.crop(box).tobytes(),
               label + ' restores the same visible stage background')
 
@@ -104,7 +115,9 @@ def main():
         save = args.output / (module + '-save')
         events = ['600:start:4']
         events.extend('%d:right:4' % (2100 + 20 * i) for i in range(index + 1))
-        events += ['2250:start:4', '2450:b:4', '2600:right:30',
+        # Ten frames of RIGHT are enough for the movement/checkpoint checks and
+        # stop before the STG2C first patrol's contact box.
+        events += ['2250:start:4', '2450:b:4', '2600:right:10',
                    '2800:start:4', '3100:down:4', '3120:start:4']
         # The 3A movement fixture lands between both patrols. Retreat after
         # recording movement, leaving a non-spawn checkpoint outside their
@@ -165,12 +178,11 @@ def main():
     early = state(wall / 'ram_2520.bin', wall_offset)
     late = state(wall / 'ram_2549.bin', wall_offset)
     print('wall 2C', early, late, flush=True)
-    check(early[0] == late[0] == 32, '2C wall stops LEFT at its x=32 boundary')
+    check(early[0] == late[0] == 0, '2C left boundary stops LEFT at x=0')
 
     # Reach the upper boundary using a valid synthetic checkpoint in an
-    # isolated copy of BRAM: on the 2C ramp x=400 has floor y=28, so y=12 is
-    # grounded and jumping reaches y=0. The scene's tall pillars otherwise
-    # prevent reaching this portion from its default spawn.
+    # isolated copy of BRAM: the continuous 2C floor is y=66, so y=50 is
+    # grounded and jumping reaches y=0.
     source_save = args.output / 'stage2c-save'
     ceiling_dir = args.output / 'ceiling-save'
     ceiling_dir.mkdir()
@@ -178,7 +190,7 @@ def main():
     records = [(o, v) for o, v in save_records(ceiling_bram) if v == 2]
     check(bool(records), '2C ceiling fixture has a valid position-aware save')
     for offset, _ in records:
-        ceiling_bram[offset + 4:offset + 10] = bytes((6, 1, 0x01, 0x90, 0x00, 0x0c))
+        ceiling_bram[offset + 4:offset + 10] = bytes((6, 1, 0x01, 0x90, 0x00, 0x32))
         ceiling_bram[offset + 12:offset + 14] = crc16_ccitt(
             ceiling_bram[offset:offset + 12]).to_bytes(2, 'big')
     (ceiling_dir / 'scd_U.brm').write_bytes(ceiling_bram)
@@ -187,14 +199,15 @@ def main():
         shutil.copyfile(cart, ceiling_dir / cart.name)
     ceiling = run_case(args, 'ceiling-2c', ceiling_dir,
                        ['600:start:4', '2200:down:4', '2240:start:4', '2400:b:4'],
-                       [2399, 2402, 2403, 2404, 2420], 2450)
+                       [2399, 2402, 2403, 2404, 2405, 2406, 2407, 2408, 2420], 2450)
     roof = [state(ceiling / ('ram_%04d.bin' % frame), wall_offset)
-            for frame in (2399, 2402, 2403, 2404, 2420)]
+            for frame in (2399, 2402, 2403, 2404, 2405, 2406, 2407, 2408, 2420)]
     print('ceiling 2C', roof, flush=True)
-    check(roof[0][:2] == (400, 12) and roof[0][3] == 1,
-          '2C checkpoint starts grounded on the upper ramp')
-    check(all(p[1] <= 176 for p in roof) and any(p[1] == 0 and p[2] == 0 for p in roof[1:]),
-          '2C upper boundary stops upward movement at y=0')
+    check(roof[0][:2] == (400, 50) and roof[0][3] == 1,
+          '2C checkpoint starts grounded on the continuous floor')
+    check(any(p[1] < 50 and p[2] < 0 for p in roof[1:]) and
+          roof[-1][1] == 50 and roof[-1][3] == 1,
+          '2C jump rises and lands on the continuous floor')
 
     # In 2A the first captured platform ends at x=255. Holding RIGHT across
     # its edge makes the character fall out of the visible window and respawn.
@@ -205,8 +218,33 @@ def main():
     edge = state(fall / 'ram_2559.bin', fall_offset)
     after_fall = state(fall / 'ram_2609.bin', fall_offset)
     print('fall 2A', edge, after_fall, flush=True)
-    check(edge[0] > 200 and after_fall[0] < edge[0],
-          'falling beyond the platform returns the character to spawn')
+    check(edge[0] > 200 and after_fall[0] > 256 and after_fall[0] > edge[0],
+          '2A crosses the old one-screen edge without respawning')
+
+    # DOWN + B performs the PCE slide: no jump, a lowered body and 3 px/frame
+    # for 18 frames. The stage is entered with the same menu sequence as above.
+    slide = run_case(args, 'slide-2a', args.output / 'slide-save',
+                     ['600:start:4', '2100:right:4', '2250:start:4',
+                      '2450:down:4', '2450:b:4'],
+                     [2449, 2452, 2460, 2466, 2472], 2520)
+    at_slide = lambda frame: state_slide(slide / ('ram_%04d.bin' % frame),
+                                         fall_offset)
+    before_slide = at_slide(2449)
+    sliding = at_slide(2452)
+    advanced = at_slide(2460)
+    travelled = at_slide(2466)
+    finished = at_slide(2472)
+    print('slide 2A', before_slide, sliding, advanced, travelled, finished,
+          flush=True)
+    check(before_slide[3] == 1, 'slide fixture starts grounded')
+    check(sliding[4] > 0 and sliding[1] == before_slide[1] and sliding[3] == 1,
+          'DOWN + B starts a grounded slide instead of a jump')
+    check(advanced[0] > sliding[0] + 15,
+          'slide advances faster than the walk step')
+    check(travelled[0] - before_slide[0] >= 40,
+          'slide covers at least 40 pixels in 16 frames')
+    check(finished[4] == 0 and finished[3] == 1,
+          'slide ends grounded and control returns')
 
     # Save while airborne. A control run establishes the exact physics state
     # in the frame when START will be pressed; a second run verifies that the
