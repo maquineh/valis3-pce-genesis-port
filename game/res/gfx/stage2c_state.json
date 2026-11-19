@@ -30,8 +30,8 @@
   },
   "fallback_pce_palette": null,
   "palette_mode": "exact-color-pack",
-  "line3_used_indices": [
-    0,
+  "line3_used_indices": [],
+  "reserved_line3": [
     1,
     2,
     3,
@@ -39,15 +39,149 @@
     5,
     6,
     7,
+    8,
+    9,
     10,
     11,
     12,
     13,
-    14
-  ],
-  "reserved_line3": [
-    8,
-    9,
+    14,
     15
-  ]
+  ],
+  "background_palette_lines": [
+    0,
+    1,
+    2
+  ],
+  "background_moved_line3_tiles": [
+    {
+      "tile": 0,
+      "target_line": 0,
+      "color_error": 0,
+      "exact_indices": 4
+    },
+    {
+      "tile": 1,
+      "target_line": 0,
+      "color_error": 0,
+      "exact_indices": 4
+    },
+    {
+      "tile": 7,
+      "target_line": 0,
+      "color_error": 113,
+      "exact_indices": 4
+    },
+    {
+      "tile": 8,
+      "target_line": 1,
+      "color_error": 55,
+      "exact_indices": 5
+    },
+    {
+      "tile": 9,
+      "target_line": 0,
+      "color_error": 69,
+      "exact_indices": 4
+    },
+    {
+      "tile": 10,
+      "target_line": 0,
+      "color_error": 113,
+      "exact_indices": 4
+    },
+    {
+      "tile": 17,
+      "target_line": 2,
+      "color_error": 606,
+      "exact_indices": 3
+    },
+    {
+      "tile": 18,
+      "target_line": 0,
+      "color_error": 336,
+      "exact_indices": 4
+    },
+    {
+      "tile": 19,
+      "target_line": 0,
+      "color_error": 113,
+      "exact_indices": 4
+    },
+    {
+      "tile": 20,
+      "target_line": 0,
+      "color_error": 69,
+      "exact_indices": 4
+    },
+    {
+      "tile": 21,
+      "target_line": 0,
+      "color_error": 69,
+      "exact_indices": 4
+    },
+    {
+      "tile": 22,
+      "target_line": 0,
+      "color_error": 113,
+      "exact_indices": 4
+    }
+  ],
+  "background_exact_pixels": 43,
+  "background_approx_pixels": 318,
+  "actor_bytes": 9248,
+  "actor_frames": {
+    "player": 4,
+    "enemy": 2
+  },
+  "actor_tile_indices": {
+    "player": 159,
+    "enemy": 351,
+    "heart": 447
+  },
+  "actor_frame_tiles": 48,
+  "actor_palette_lines": {
+    "player": 3,
+    "enemy": 2
+  },
+  "actor_sources": {
+    "player": [
+      "0x865c",
+      "0x8667",
+      "0x8672",
+      "0x868d"
+    ],
+    "enemy": [
+      "0x89b8",
+      "0x89bd"
+    ]
+  },
+  "fire_palette_line": 2,
+  "fire_palette_map": [
+    0,
+    14,
+    14,
+    14,
+    4,
+    4,
+    4,
+    4,
+    15,
+    14,
+    14,
+    4,
+    4,
+    4,
+    4,
+    15
+  ],
+  "fire_exact_indices": [
+    3,
+    15
+  ],
+  "fire_added_palette_slots": {
+    "3": 14,
+    "15": 15
+  },
+  "actor_mode": "captured-pce-frames"
 }

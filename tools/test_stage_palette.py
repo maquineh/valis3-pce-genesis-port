@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / 'tools'))
 GFX = ROOT / 'game' / 'res' / 'gfx'
 STEM = 'Valis III (Japan).dad575d3e6e26b145cc260e5858b8c48'
 RESERVED = {8, 9, 15}
@@ -58,7 +59,7 @@ class StagePaletteTests(unittest.TestCase):
                 self.assertEqual(len(set(poses)), 4 + enemy_frames)
                 self.assertTrue(all(len(frame) == 1536 and any(frame) for frame in poses))
                 maps = (GFX / (stage + '_maps.bin')).read_bytes()
-                self.assertEqual(len(maps), 32 * 28 * 2)
+                self.assertEqual(len(maps), 64 * 28 * 2)
                 tiles = (GFX / (stage + '_tiles.bin')).read_bytes()
                 self.assertTrue(any(index for _, index, _ in palette_pixels(tiles, maps)))
 

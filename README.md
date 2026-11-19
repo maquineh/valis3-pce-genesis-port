@@ -38,7 +38,8 @@ captured enemies and the remaining differences room by room.
 | Original soundtrack as CD-DA + `.cue` | ⚠️ Disc builder provided; the soundtrack files and final disc must be present locally |
 | Original PCM effects (sword, jump, hit, magic) | ✅ Packed from the commercial PCE/Genesis captures; `tools/test_city_sfx.py` finds both banks in PCM RAM |
 | Original PCE HUD item icons | ✅ `tools/pack_pce_icons.py`; captured CRAM remains unchanged |
-| Phase 2 chain (coast → seaside → forest → dungeon → boss → ice castle) | ✅ Normal route starts on screen 0 and visits all 4 coast/dungeon + 2 seaside/forest screens before the boss; music, effects and exits; `tools/test_stage_combat_integration.py` passes |
+| Phase 2 chain (coast → seaside → forest → dungeon → boss → ice castle) | ✅ Normal route starts on screen 0 and visits all 4 coast/dungeon + 2 seaside/forest screens before the boss; captured player and enemy frames in every room, music, effects and exits; `tools/test_stage_combat_integration.py` passes |
+| STG2C captured actors | ✅ Four captured player poses and two captured fire patrol frames packed from the `.mc2` state; palette line 3 is the exact PCE player palette; `tools/test_stage2c_actors_integration.py` matches 539 player pixels and 401 pixels for each fire enemy in game |
 | Stage 2 slide (DOWN + B) | ✅ 18 frames at 3 px/frame in every phase-2 room and the boss; lowered body ignores contact and deals one hit per enemy; `tools/test_stage_slide_integration.py` and `tools/test_stage_physics_integration.py` pass |
 | Stage 2 PCE comparison | ✅ Room/asset table and remaining gaps in `docs/stage2-comparison.md` |
 | STG2C dungeon boss | ✅ Reached from STAGE2C and selectable as scene 11; captured knight pair + fireballs, 16 HP, voice then boss music; `tools/test_stage2_boss_integration.py` passes |

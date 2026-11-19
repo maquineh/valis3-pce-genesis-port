@@ -124,12 +124,12 @@ references the same ISO and the 54 extracted CD-DA WAVs.
 These are emulator checks with the user's BIOS; they do not validate physical
 hardware.
 
-## 2026-11-19 - complete stage 2 route and slide
+## 2026-11-19 - complete stage 2 assets and slide
 
 The native rebuild produced `build/valis3.iso` and `dist/valis3_mcd.iso` with
-SHA-256 `474374adb122d03bfd532524ef19ec823c7ab5df1744a0aef0a5914f6982fae5`
-(3,065,856 bytes). The ISO additionally carries the DOWN+B slide in the shared
-stage physics.
+SHA-256 `12b8dfc575ea4425394dc6fe84bf1b568545b02abdef207796f0f7debab1bf8b`
+(3,076,096 bytes). The ISO carries the DOWN+B slide in the shared stage physics
+and the captured STG2C player/fire actor frames.
 
 - `tools/test_stage_combat_integration.py` completed
   `STAGE2 -> STAGE2A2 -> STAGE2B -> STAGE2C -> STG2BOSS -> STAGE3A -> STAGE2`,
@@ -151,12 +151,22 @@ PASS: DOWN+B slide crosses the STAGE2A2 enemy with damage and no contact
   grounded slide instead of a jump, covers at least 40 pixels and ends
   grounded. `tools/test_stage2_boss_integration.py` repeated its sixteen-hit
   defeat and STAGE3A transition.
+- `tools/test_stage2c_palette.py` regenerated the STG2C pack from the `.mc2`
+  state and matched every committed tile, map, palette and actor byte. It
+  verified the exact PCE player palette on line 3, the two added fire colors
+  on line 2, the captured four player frames and two fire frames, and the
+  remapped background tiles.
+- `tools/test_stage2c_actors_integration.py` selected STAGE2C from the title
+  and matched the live screenshot against the packed frames: 539 of 539
+  player pixels and 401 of 401 pixels for each of the two fire enemies at the
+  adjacent patrol position. This is the in-game proof that the dungeon uses
+  the captured actor tiles.
 - `tools/test_city_integration.py`, `tools/test_title_menu_integration.py`,
   `tools/test_city_sfx.py`, `tools/test_city_voice.py` and
   `tools/test_city_cdda.py` all passed on the same build. The CD-DA checks
   scored 0.980/0.984/0.984 and found Cham's line at 56.17 s.
 - `tools/verify_all.py` reported `== 0 failure(s) ==`.
 
-The room-by-room PCE comparison and the remaining asset limits (the STAGE2C
-dungeon actors are still prototype sprites) are documented in
-`docs/stage2-comparison.md`.
+The room-by-room PCE comparison, palette remap details and remaining limits
+(the optional STAGE2CB/2CG menu scenes still use the placeholder actor) are
+documented in `docs/stage2-comparison.md`.

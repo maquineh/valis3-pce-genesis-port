@@ -12,7 +12,7 @@ Mednafen save states; it is not a port of an existing Genesis level.
 | STG2A opening (coast) | root `.mc0` | `STAGE2.MMD` | 4 | captured BAT/VRAM/CRAM, rows 32/40 | captured lance knight (from the seaside sprite table) |
 | STG2A room 2 (seaside) | `states/.mc1` | `STAGE2A2.MMD` | 2 | captured BAT windows at rows 7 and 20 | four-frame captured lance knight |
 | STG2B (forest) | root `.mc2` | `STAGE2B.MMD` | 2 | captured BAT windows at rows 0 and 8 | three-frame captured red-outlined figure |
-| STG2C (dungeon) | `states/.mc2` | `STAGE2C.MMD` | 4 | captured orange-brick dungeon BAT/VRAM/CRAM | 16x16 prototype patrol (not the retail enemy table) |
+| STG2C (dungeon) | `states/.mc2` | `STAGE2C.MMD` | 4 | captured orange-brick dungeon BAT/VRAM/CRAM | four-frame captured player and two-frame captured fire patrol |
 | STG2C boss | root `.mc3` background | `STG2BOSS.MMD` | 1 | blue corridor capture | captured blue-knight pair plus captured fireball tiles |
 
 The normal flow is
@@ -25,7 +25,11 @@ before the exit; the boss remains selectable from the title menu (save ID 20).
 * Backgrounds, palettes and actor frames are packed from the original PCE
   save states, not redrawn.
 * The captured player has four frames (idle, two walk poses and sword) in
-  STAGE2, STAGE2A2 and STAGE2B, and is reused in the boss arena.
+  STAGE2, STAGE2A2, STAGE2B and STAGE2C, and is reused in the boss arena.
+* STAGE2C uses the four player poses and two captured fire/animation frames
+  from its own `.mc2` save state. Palette line 3 is the exact PCE sprite
+  palette 5, and the captured fire uses line 2 with its two brightest colors
+  added to unused slots.
 * STAGE2A2 and STAGE2B use two different captured vertical windows; STAGE2 and
   STAGE2C use four windows. The screen switch happens at the 256-pixel
   boundary, like the PCE's 256-pixel viewport.
@@ -62,6 +66,40 @@ PASS: DOWN+B slide crosses the STAGE2A2 enemy with damage and no contact
 `tools/test_stage_physics_integration.py` additionally checks that DOWN + B
 does not jump, covers at least 40 pixels and ends grounded.
 
+## STG2C captured actors
+
+`tools/pack_stage2c_actors.py` extracts the dungeon actors from the same
+`.mc2` state used for the background:
+
+* four player poses at CDRAM descriptor lists `$865c`, `$8667`, `$8672` and
+  `$868d` (idle, two strides and attack), packed into 64x48 frames;
+* two fire patrol frames at `$89b8` and `$89bd`, packed into 48x64 frames;
+* the original 8x8 HUD heart recoloured into the captured player palette.
+
+The MD sprite palette line 3 is the exact PCE sprite palette 5. The dungeon
+background keeps its exact colors on lines 0-2; the twelve background tiles
+that used line 3 are remapped to their nearest line-0/1/2 colors (318 of the
+196,608 captured background pixels, about 0.16%). Line 2 keeps two unused
+slots for the fire's bright yellow and white; the remaining fire colors map to
+the closest warm slots on line 2.
+
+In-game evidence: `tools/test_stage2c_actors_integration.py` selects STAGE2C
+from the title, reads the live player and enemy positions from work RAM, and
+compares the screenshot against the packed frames:
+
+```text
+player 100 50 facing 1 camera 0 sprite 92 18
+sprite pixels 539 matched 539 worst 17 colors 15
+enemy 0 candidates [(221, 401, 0, 150, 2), (401, 401, 1, 151, 2)]
+enemy 1 candidates [(221, 401, 0, 210, 2), (401, 401, 1, 211, 2)]
+PASS: STAGE2C draws the captured PCE player frame in game
+```
+
+The two enemy candidates reflect the video buffer being one patrol step ahead
+of the post-frame RAM; the adjacent draw position matches all 401 fire pixels
+for both enemies. `tools/test_stage2c_palette.py` also regenerates the pack and
+compares every tile, map, palette and actor byte with the committed assets.
+
 ## Honest differences and remaining gaps
 
 * There is no recovered retail enemy/placement table. Enemy positions, patrol
@@ -69,8 +107,11 @@ does not jump, covers at least 40 pixels and ends grounded.
 * The captured BAT's right columns 32-63 are blank/HUD, so the second
   STAGE2A2/STAGE2B screen is another captured vertical window from the same
   state, not a contiguous horizontal extension of the retail room.
-* STAGE2C still uses the 16x16 prototype player and patrol sprites. Its
-  background is captured, but its actors are not the retail dungeon actors.
+* The optional STAGE2CB and STAGE2CG one-screen menu scenes are outside the
+  normal phase-2 route and still use the small placeholder actor; the dungeon
+  in the normal route uses the captured frames.
+* The fire uses two exact warm colors added to line 2; its dark outline shades
+  are approximated by the nearest slots on that shared background line.
 * The PCE HUD sits at the bottom of the screen. The port draws a fixed HUD
   (top row in STAGE2, in-map HP row in the room modules). This is a layout
   adaptation used by all captured-scene prototypes.

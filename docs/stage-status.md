@@ -4,7 +4,7 @@ There are ten `STG` blocks on PCE track 2. Ten experimental scene modules
 (plus the selectable STG2C dungeon boss) use BAT/VRAM/CRAM captured from six
 of those blocks in Mednafen save states.
 They display captured background windows with horizontal movement, jumping, and
-manually approximated collision surfaces. STG2A and STG2B use the captured player;
+manually approximated collision surfaces. STG2A, STG2B and STG2C use the captured player;
 some other scenes still use the small placeholder sprite. The earlier scene prototypes also have two authored patrol enemies each, basic attacks, contact
 damage, three live heart indicators, and an experimental progression loop.
 Enemy placement and movement are prototypes. The flying disc silhouette is
@@ -103,7 +103,7 @@ py -3 tools/pack_state_window.py "states/Valis III (Japan).dad575d3e6e26b145cc26
 | STG2A (room 1) | 344 | root `.mc0` | `STAGE2.MMD` (9084 B) | scene prototype |
 | STG2A (room 2, seaside) | 344 | `states/…mc1` | `STAGE2A2.MMD` | coastal lance encounter |
 | STG2B | 384 | root `.mc2` | `STAGE2B.MMD` | forest encounter |
-| STG2C (dungeon) | 424 | `states/…mc2` | `STAGE2C.MMD` | scene prototype |
+| STG2C (dungeon) | 424 | `states/…mc2` | `STAGE2C.MMD` | four-screen route; captured player and fire actors |
 | STG2C (corridor) | 424 | root `.mc3` | `STAGE2CB.MMD` | one-screen corridor snapshot |
 | STG2C (green room) | 424 | `states/…mc3` | `STAGE2CG.MMD` | one-screen landscape prototype |
 | STG3A | 464 | `states/stg3a_additional.mc4` | `STAGE3A.MMD` | two-screen scene prototype |
@@ -286,6 +286,40 @@ grounded slide instead of a jump, covers at least 40 pixels and ends grounded.
 The room-by-room PCE comparison, captured enemy inventory and remaining asset
 gaps are in `docs/stage2-comparison.md`.
 
+## STG2C captured actors
+
+`tools/pack_stage2c_actors.py` replaces the dungeon's 16x16 placeholder actors
+with frames from the same `.mc2` state used for the background:
+
+* four player poses from CDRAM descriptors `$865c`, `$8667`, `$8672` and
+  `$868d`, packed into 64x48 frames;
+* two fire patrol poses from `$89b8` and `$89bd`, packed into 48x64 frames;
+* the original 8x8 HUD heart recoloured into the captured player palette.
+
+MD palette line 3 is the exact PCE sprite palette 5. The dungeon background
+keeps exact colors on lines 0-2; the twelve background tiles that used line 3
+move to their nearest line-0/1/2 colors (318 of 196,608 background pixels,
+about 0.16%). Line 2 keeps two unused slots for the fire's bright yellow and
+white, and the remaining fire shades use the closest warm slots.
+
+`tools/test_stage2c_palette.py` regenerates the complete pack and compares
+every tile, map, palette and actor byte with the committed assets, and checks
+each captured player/fire frame against its PCE descriptor list.
+`tools/test_stage2c_actors_integration.py` selects STAGE2C from the title and
+compares the live screenshot with those frames:
+
+```text
+player 100 50 facing 1 camera 0 sprite 92 18
+sprite pixels 539 matched 539 worst 17 colors 15
+enemy 0 candidates [(221, 401, 0, 150, 2), (401, 401, 1, 151, 2)]
+enemy 1 candidates [(221, 401, 0, 210, 2), (401, 401, 1, 211, 2)]
+PASS: STAGE2C draws the captured PCE player frame in game
+```
+
+The adjacent enemy candidate reflects the video buffer being one patrol step
+ahead of the post-frame RAM; the chosen position matches all 401 fire pixels
+for both enemies. The optional STAGE2CB and STAGE2CG menu scenes are outside
+the normal route and still use the small placeholder actor.
 
 ## Dungeon boss
 

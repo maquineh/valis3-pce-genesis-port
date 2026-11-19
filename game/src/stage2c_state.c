@@ -28,21 +28,29 @@
 #include <main/vdp.h>
 #include <system.h>
 #include <types.h>
+#include "phase2_actor.h"
 
 extern u8 next_module;
 extern u8 res_stage2c_state_tiles[];
 extern u8 res_stage2c_state_pal[];
 extern u8 res_stage2c_state_maps[];
-extern u8 res_player_spr[];
+extern u8 res_stage2c_state_actors[];
 
 #define STAGE_SCREENS 4
 #define STAGE_TILES 159
 #define SCREEN_COLS 32
 #define SCREEN_ROWS 24
 #define PLAYER_TILE 159   /* after the repacked stage art */
+#define PLAYER_FRAME_TILES 48
+#define PLAYER_FRAMES 4
+#define ENEMY_TILE (PLAYER_TILE + PLAYER_FRAMES * PLAYER_FRAME_TILES)
+#define ENEMY_FRAMES 2
+#define HEART_TILE (ENEMY_TILE + ENEMY_FRAMES * PLAYER_FRAME_TILES)
+#define ACTOR_TILES (PLAYER_FRAMES * PLAYER_FRAME_TILES + \
+                     ENEMY_FRAMES * PLAYER_FRAME_TILES + 1)
 #define HSCROLL_ADDR 0xBC00
 
-static u8 screen_no, room_no;
+static u8 screen_no, room_no, enemy_tick, walk_tick;
 static u16 camera_x;
 StagePhysics stage_player;
 static StageCombat stage_combat;
@@ -99,16 +107,15 @@ static void stage_load(void)
     (STAGE_TILES * 32) >> 1);
   bios_load_pal_update((Palette *)&res_stage2c_state_pal[0]);
 
-  /* Player, heart and prototype enemy tiles; colors use reserved line 3 slots. */
+  /* Captured STG2C actor frames: four player poses, two fire frames and the
+   * HUD heart. Palette line 3 is the exact PCE player palette; the fire uses
+   * line 2 with two added warm colors. */
   bios_dma_xfer_word_ram(
     to_vdp_addr(vram_addr_from_tileidx(PLAYER_TILE)),
-    &res_player_spr[0],
-    (9 * 32) >> 1);
-  /* Line 3 indices 8, 9 and 15 are unused by this captured background. */
-  bios_palette[56] = 0x0EEE;
-  bios_palette[57] = 0x0CCC;
-  bios_palette[63] = 0x0AAA;
-  bios_vdp_update_flags |= BIOS_MASK_COPY_PALETTE;
+    &res_stage2c_state_actors[0],
+    (ACTOR_TILES * 32) >> 1);
+  enemy_tick = 0;
+  walk_tick = 0;
 
   /* plane A: clear, then draw the first two screens */
   bios_plane_fill(
@@ -182,6 +189,8 @@ static void stage_input(void)
     engine_audio_command(CMD_PLAY_SFX, CITY_SFX_SWORD);
   if (hit || stage_combat.hp < old_hp)
     engine_audio_command(CMD_PLAY_SFX, CITY_SFX_HIT);
+  if (bios_joy1_hold & (PAD_LEFT | PAD_RIGHT)) ++walk_tick;
+  else walk_tick = 0;
   camera_x = stage_player.x > 120 ? stage_player.x - 120 : 0;
   if (camera_x > (STAGE_SCREENS - 1) * 256)
     camera_x = (STAGE_SCREENS - 1) * 256;
@@ -194,61 +203,41 @@ static void stage_input(void)
 
 static void player_draw(void)
 {
-  bios_sprlist[0].pos_x = 128 + stage_player.x - camera_x;
-  bios_sprlist[0].pos_y = 128 + stage_player.y + (stage_player.slide_timer ? 8 : 0);
-  if (stage_combat.game_over || (stage_combat.invulnerable & 4)) {
-    bios_sprlist[0].pos_x=0; bios_sprlist[0].pos_y=0;
+  u8 sliding = stage_player.slide_timer != 0;
+  u8 frame = sliding ? 3 : stage_combat.attack_flash ? 3 :
+             walk_tick ? 1 + ((walk_tick >> 3) & 1) : 0;
+  u8 flip = !stage_combat.facing;
+  u8 visible = !stage_combat.game_over && !(stage_combat.invulnerable & 4);
+  u8 eframe = (enemy_tick >> 3) & 1;
+  u8 i;
+
+  ++enemy_tick;
+  draw_actor(0, PLAYER_TILE + frame * PLAYER_FRAME_TILES,
+             (s16)stage_player.x - camera_x - (flip ? 40 : 8),
+             (s16)stage_player.y - (sliding ? 24 : 32),
+             64, 48, 3, flip, visible, 14);
+  for (i = 0; i < STAGE_ENEMY_MAX; ++i) {
+    StageEnemy *e = &stage_enemies[i];
+    s16 x = e->x - (s16)camera_x - 16;
+    draw_actor(4 + i * 4, ENEMY_TILE + eframe * PLAYER_FRAME_TILES,
+               x, e->y - 48, 48, 64, 2, e->direction,
+               e->alive && !(e->hit_flash & 1) && x > -48 && x < 256, 14);
   }
-  bios_sprlist[0].tile = PLAYER_TILE;
-  bios_sprlist[0].width = 1;      /* 2x2 cells */
-  bios_sprlist[0].height = 1;
-  bios_sprlist[0].palette = 3;
-  bios_sprlist[0].priority = 1;
-  bios_sprlist[0].next = 1;
-  {
-    u8 i;
-    for (i=0; i<STAGE_ENEMY_MAX; ++i) {
-      u8 slot=i+1;
-      if (stage_enemies[i].alive && stage_enemies[i].x + 16 > camera_x &&
-          stage_enemies[i].x < camera_x + 256) {
-        bios_sprlist[slot].pos_x=128 + stage_enemies[i].x - camera_x;
-        bios_sprlist[slot].pos_y=128 + stage_enemies[i].y;
-        if (stage_enemies[i].hit_flash & 1) {
-          bios_sprlist[slot].pos_x=0; bios_sprlist[slot].pos_y=0;
-        }
-        bios_sprlist[slot].tile=PLAYER_TILE+5;
-        bios_sprlist[slot].width=1; bios_sprlist[slot].height=1;
-        bios_sprlist[slot].palette=3;
-        bios_sprlist[slot].priority=1;
-      } else {
-        bios_sprlist[slot].pos_x=0; bios_sprlist[slot].pos_y=0;
-        bios_sprlist[slot].tile=PLAYER_TILE+5;
-        bios_sprlist[slot].width=1; bios_sprlist[slot].height=1;
-        bios_sprlist[slot].palette=3;
-        bios_sprlist[slot].priority=1;
-      }
-      bios_sprlist[slot].next=slot+1;
-    }
-    bios_sprlist[3].pos_x=0; bios_sprlist[3].pos_y=0;
-    bios_sprlist[3].tile=PLAYER_TILE+3; bios_sprlist[3].width=0;
-    bios_sprlist[3].height=0; bios_sprlist[3].palette=2;
-    bios_sprlist[3].priority=1; bios_sprlist[3].next=4;
-    if (stage_combat.attack_flash && !stage_combat.game_over) {
-      bios_sprlist[3].pos_x=128 + stage_player.x - camera_x +
-                            (stage_combat.facing ? 16 : -16);
-      bios_sprlist[3].pos_y=128 + stage_player.y;
-    }
-    for (i=0; i<3; ++i) {
-      u8 slot=i+4;
-      bios_sprlist[slot].pos_x=0; bios_sprlist[slot].pos_y=0;
-      bios_sprlist[slot].tile=PLAYER_TILE+4;
-      bios_sprlist[slot].width=0; bios_sprlist[slot].height=0;
-      bios_sprlist[slot].palette=3; bios_sprlist[slot].priority=1;
-      bios_sprlist[slot].next=(i<2) ? slot+1 : 0;
-      if (i < stage_combat.hp) {
-        bios_sprlist[slot].pos_x=128 + 224 + i*8;
-        bios_sprlist[slot].pos_y=136;
-      }
+  for (i = 0; i < 3; ++i) {
+    u8 slot = 12 + i;
+    bios_sprlist[slot].pos_x = 0;
+    bios_sprlist[slot].pos_y = 0;
+    bios_sprlist[slot].tile = HEART_TILE;
+    bios_sprlist[slot].width = 0;
+    bios_sprlist[slot].height = 0;
+    bios_sprlist[slot].palette = 3;
+    bios_sprlist[slot].priority = 1;
+    bios_sprlist[slot].h_flip = 0;
+    bios_sprlist[slot].v_flip = 0;
+    bios_sprlist[slot].next = (i < 2) ? slot + 1 : 0;
+    if (i < stage_combat.hp) {
+      bios_sprlist[slot].pos_x = 128 + 224 + i * 8;
+      bios_sprlist[slot].pos_y = 136;
     }
   }
   bios_copy_sprlist();
